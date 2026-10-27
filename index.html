@@ -1,0 +1,816 @@
+<!doctype html><html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"></head><body><title>KI-Werkstatt</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500..800&family=IBM+Plex+Mono:wght@400;500&family=Source+Sans+3:wght@400;500;600;700&display=swap">
+<style>
+/* Konzept: Arbeitsmappe mit Textmarker. Links das Inhaltsverzeichnis der Module, rechts die Fortschrittskarte mit Radar; ein Modul läuft als Folge kurzer Schritte. */
+:root{
+  --bg:#EDF1F1; --surface:#FFFFFF; --surface2:#F4F7F7; --ink:#12262B; --muted:#55696E; --line:#D2DCDC;
+  --brand:#0E5A63; --brand-ink:#FFFFFF; --brand-soft:#D8ECEE;
+  --mark:#0E5A63; --mark-ink:#FFFFFF;
+  --good:#1B7F52; --good-soft:#DDF1E6; --bad:#B3342A; --bad-soft:#F7E0DD;
+  --font-display:'Bricolage Grotesque',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --font-body:'Source Sans 3',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --font-mono:'IBM Plex Mono',ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0D1A1D; --surface:#14262A; --surface2:#1A2F34; --ink:#E5EEEE; --muted:#93A9AD; --line:#27393D;
+    --brand:#58C1CC; --brand-ink:#052227; --brand-soft:#1B3A40;
+    --good:#4CC38A; --good-soft:#173A2B; --bad:#F0877D; --bad-soft:#40201D; color-scheme:dark; --mark:#58C1CC; --mark-ink:#052227;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0D1A1D; --surface:#14262A; --surface2:#1A2F34; --ink:#E5EEEE; --muted:#93A9AD; --line:#27393D;
+  --brand:#58C1CC; --brand-ink:#052227; --brand-soft:#1B3A40;
+  --good:#4CC38A; --good-soft:#173A2B; --bad:#F0877D; --bad-soft:#40201D; color-scheme:dark; --mark:#58C1CC; --mark-ink:#052227;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--font-body);font-size:17px;line-height:1.55;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:0 48px}
+h1,h2,h3{font-family:var(--font-display);line-height:1.15;margin:0;text-wrap:balance;letter-spacing:-.01em}
+p{margin:0 0 .8em}
+mark{background:none;color:var(--brand);font-weight:700;padding:0}
+button,input,select,textarea{font:inherit;color:inherit}
+:focus-visible{outline:3px solid var(--brand);outline-offset:2px;border-radius:6px}
+.wrap{max-width:1120px;margin:0 auto}
+.bar{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);border-bottom:1px solid var(--line);margin:0 calc(-1*max(16px,env(safe-area-inset-left,0px)));padding:10px max(16px,env(safe-area-inset-right,0px)) 10px max(16px,env(safe-area-inset-left,0px))}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--bg)}
+.bar .wrap{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.brand{font-family:var(--font-display);font-weight:800;font-size:1.25rem;background:none;border:0;cursor:pointer;padding:4px 0}
+.brand span{color:var(--brand)}
+.pill{display:inline-flex;align-items:center;gap:6px;padding:3px 11px;border-radius:99px;background:var(--brand-soft);color:var(--brand);font-weight:700;font-size:.85rem}
+.spacer{flex:1}
+.meter{display:flex;align-items:center;gap:10px;font-size:.85rem;color:var(--muted)}
+.track{width:140px;height:8px;border-radius:9px;background:var(--line);overflow:hidden}
+.track i{display:block;height:100%;background:var(--brand);border-radius:9px;transition:width .4s}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:0;border-radius:10px;padding:11px 18px;font-weight:700;cursor:pointer;background:var(--brand);color:var(--brand-ink);min-height:44px}
+.btn:hover{filter:brightness(1.08)}
+.btn.ghost{background:transparent;color:var(--brand);border:1.5px solid var(--brand)}
+.btn.small{padding:6px 12px;min-height:34px;font-size:.9rem;border-radius:8px}
+.btn[disabled]{opacity:.45;cursor:not-allowed}
+.link{background:none;border:0;color:var(--brand);font-weight:600;cursor:pointer;padding:6px 0;text-decoration:underline;text-underline-offset:3px}
+/* Übersicht */
+.home{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:32px;align-items:start;padding-top:28px}
+.hero h1{font-size:clamp(2rem,5vw,3.2rem);font-weight:800;max-width:15ch}
+.hero p{font-size:1.15rem;color:var(--muted);max-width:52ch;margin-top:14px}
+.hero .btn{margin-top:6px}
+.stage{margin-top:34px}
+.stage h2{font-size:1.1rem;display:flex;align-items:center;gap:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;font-weight:700;font-family:var(--font-body)}
+.stage h2 b{display:inline-grid;place-items:center;width:30px;height:30px;border-radius:8px;background:var(--ink);color:var(--bg);font-family:var(--font-display);letter-spacing:0}
+.mods{display:flex;flex-direction:column;gap:10px;margin-top:12px}
+.mod{display:grid;grid-template-columns:44px minmax(0,1fr) auto;gap:14px;align-items:center;text-align:left;width:100%;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px 16px;cursor:pointer}
+.mod:hover:not(.locked){border-color:var(--brand)}
+.mod.locked{cursor:default;opacity:.62}
+.mod .num{width:44px;height:44px;border-radius:10px;display:grid;place-items:center;font-family:var(--font-display);font-weight:800;font-size:1.2rem;background:var(--surface2);border:1px solid var(--line)}
+.mod.done .num{background:var(--good);color:#fff;border-color:var(--good)}
+.mod h3{font-size:1.08rem}
+.mod p{margin:2px 0 0;color:var(--muted);font-size:.93rem;line-height:1.4}
+.mod .tag{font-size:.8rem;font-weight:700;color:var(--muted);white-space:nowrap;text-align:right}
+.mod.done .tag{color:var(--good)}
+.bonus{margin-top:34px;border:1.5px dashed var(--line);border-radius:12px;padding:16px 18px;color:var(--muted);font-size:.97rem}
+.bonus strong{color:var(--ink)}
+.side{position:sticky;top:78px;display:flex;flex-direction:column;gap:16px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:18px}
+.card h3{font-size:1.05rem;margin-bottom:6px}
+.lvl{display:flex;gap:6px;margin:10px 0 4px}
+.lvl span{flex:1;text-align:center;font-size:.72rem;font-weight:700;padding:5px 2px;border-radius:7px;background:var(--surface2);color:var(--muted);border:1px solid var(--line)}
+.lvl span.on{background:var(--mark);color:var(--mark-ink);border-color:var(--mark)}
+.stat{display:flex;justify-content:space-between;font-size:.92rem;color:var(--muted);margin-top:6px}
+.stat b{color:var(--ink);font-variant-numeric:tabular-nums}
+svg.radar{width:100%;height:auto;display:block}
+svg.radar text{fill:var(--ink);font-size:15px;font-weight:600;font-family:var(--font-body)}
+svg.radar .ring{fill:none;stroke:var(--line);stroke-width:1}
+svg.radar .axis{stroke:var(--line);stroke-width:1}
+svg.radar .shape{fill:var(--brand);fill-opacity:.22;stroke:var(--brand);stroke-width:2.2;stroke-linejoin:round}
+svg.radar .pt{fill:var(--brand)}
+svg.radar .ghost{fill:none;stroke:var(--muted);stroke-width:1.5;stroke-dasharray:4 4}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:.82rem;color:var(--muted);margin-top:6px}
+.legend i{display:inline-block;width:14px;height:0;border-top:3px solid var(--brand);vertical-align:middle;margin-right:6px}
+.legend i.g{border-top:3px dashed var(--muted)}
+/* Modul */
+.crumb{padding-top:20px;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.mhead{margin-top:10px}
+.mhead small{color:var(--muted);font-weight:700;letter-spacing:.08em;text-transform:uppercase;font-size:.8rem}
+.mhead h1{font-size:clamp(1.8rem,4.5vw,2.6rem);font-weight:800;margin-top:4px}
+.steps{display:flex;gap:8px;overflow-x:auto;padding:16px 0 6px}
+.stp{flex:0 0 auto;display:flex;align-items:center;gap:8px;padding:7px 13px;border-radius:99px;border:1.5px solid var(--line);background:var(--surface);cursor:pointer;font-weight:600;font-size:.92rem;white-space:nowrap}
+.stp em{font-style:normal;color:var(--muted);font-weight:500;font-size:.82rem}
+.stp.on{border-color:var(--brand);background:var(--brand-soft);color:var(--brand)}
+.stp.ok::before{content:"✓";color:var(--good);font-weight:800}
+.body{max-width:760px;margin-top:10px}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:clamp(18px,4vw,30px)}
+.panel h2{font-size:1.5rem;margin-bottom:12px}
+.panel h3{font-size:1.15rem;margin:26px 0 8px}
+.lead{font-size:1.18rem}
+.callout{border-radius:12px;padding:14px 16px;margin:16px 0;background:var(--surface2);border:1px solid var(--line)}
+.callout b.t{display:block;font-family:var(--font-display);margin-bottom:2px}
+.callout.tip{background:var(--brand-soft);border-color:transparent}
+.callout.warn{background:var(--mark);color:var(--mark-ink);border-color:transparent}
+.callout.warn b.t{color:var(--mark-ink)}
+.grid3{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;margin:16px 0}
+.grid3>div{padding:14px;border:1px solid var(--line);border-radius:12px;background:var(--surface2);font-size:.96rem}
+.grid3 b{display:block;font-family:var(--font-display);margin-bottom:3px}
+.sl{display:grid;grid-template-columns:170px minmax(0,1fr) 140px;gap:14px;align-items:center;padding:7px 0}
+.sl label{font-weight:600}
+.sl output{font-size:.85rem;color:var(--muted)}
+input[type=range]{width:100%;accent-color:var(--brand)}
+.split{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,300px);gap:22px;align-items:start}
+textarea,input[type=text],input[type=number],select{width:100%;background:var(--surface);border:1.5px solid var(--line);border-radius:10px;padding:10px 12px}
+textarea{resize:vertical;min-height:84px}
+textarea:focus,input:focus,select:focus{border-color:var(--brand);outline:none}
+.fld{margin:12px 0}
+.fld>label{display:block;font-weight:700;font-size:.95rem;margin-bottom:5px}
+.opts{display:flex;flex-wrap:wrap;gap:8px}
+.opt{border:1.5px solid var(--line);background:var(--surface);border-radius:99px;padding:7px 14px;cursor:pointer;font-weight:600;font-size:.94rem}
+.opt.on{background:var(--brand);color:var(--brand-ink);border-color:var(--brand)}
+.fn{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px 14px;align-items:center;padding:11px 0;border-top:1px solid var(--line)}
+.fn:first-of-type{border-top:0}
+.fn b{display:block}
+.fn small{color:var(--muted);line-height:1.35;display:block}
+.copy{margin:14px 0;border:1px solid var(--line);border-radius:12px;overflow:hidden;background:var(--surface2)}
+.copy header{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:8px 8px 8px 14px;border-bottom:1px solid var(--line);font-size:.82rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+.copy pre{margin:0;padding:14px;white-space:pre-wrap;word-break:break-word;font-family:var(--font-mono);font-size:.88rem;line-height:1.55;color:var(--ink)}
+.sw{font-family:var(--font-mono);font-size:2.4rem;font-weight:500;font-variant-numeric:tabular-nums;margin:6px 0}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.nw .sent{font-family:var(--font-display);font-size:1.35rem;font-weight:600;margin:12px 0}
+.nw .sent u{text-decoration:none;border-bottom:3px dashed var(--brand);padding:0 4px;color:var(--brand)}
+.bars{display:flex;flex-direction:column;gap:7px;margin:10px 0}
+.bars div{display:grid;grid-template-columns:90px minmax(0,1fr) 44px;gap:10px;align-items:center;font-size:.93rem}
+.bars em{font-style:normal;font-weight:600}
+.bars span{height:14px;border-radius:7px;background:var(--line);overflow:hidden}
+.bars span i{display:block;height:100%;background:var(--brand)}
+.bars b{font-variant-numeric:tabular-nums;text-align:right;color:var(--muted);font-weight:600}
+.flips{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px;margin:14px 0}
+.flip{min-height:150px;text-align:left;border:1.5px solid var(--line);border-radius:14px;background:var(--surface2);padding:16px;cursor:pointer;display:flex;flex-direction:column;gap:8px}
+.flip .q{font-family:var(--font-display);font-weight:700;font-size:1.05rem}
+.flip .a{display:none;font-size:.95rem}
+.flip .hint{font-size:.8rem;color:var(--muted);margin-top:auto}
+.flip.open{background:var(--brand-soft);border-color:transparent}
+.flip.open .a{display:block}
+.flip.open .hint{display:none}
+.quiz{margin:18px 0;padding-top:14px;border-top:1px solid var(--line)}
+.quiz h4{margin:0 0 10px;font-size:1.05rem}
+.qo{display:block;width:100%;text-align:left;margin:7px 0;padding:11px 14px;border-radius:10px;border:1.5px solid var(--line);background:var(--surface);cursor:pointer}
+.qo:hover:not([disabled]){border-color:var(--brand)}
+.qo.right{background:var(--good-soft);border-color:var(--good)}
+.qo.wrong{background:var(--bad-soft);border-color:var(--bad)}
+.exp{margin-top:8px;font-size:.95rem;color:var(--muted)}
+.foot{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-top:22px}
+.tm{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,230px);gap:8px;margin:8px 0}
+.sumbar{display:flex;height:16px;border-radius:8px;overflow:hidden;margin:8px 0;background:var(--line)}
+.sumbar i{display:block}
+.c1{background:var(--brand)}.c2{background:#4F9DA6}.c3{background:var(--ink)}.c4{background:#8A6FB0}
+.key{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:.88rem;color:var(--muted)}
+.key i{display:inline-block;width:11px;height:11px;border-radius:3px;margin-right:6px;vertical-align:-1px}
+.badge{text-align:center;padding:30px 16px}
+.badge .medal{width:96px;height:96px;margin:0 auto 14px;border-radius:50%;display:grid;place-items:center;background:var(--mark);color:var(--mark-ink);font-family:var(--font-display);font-weight:800;font-size:2.2rem;box-shadow:0 0 0 6px var(--brand-soft)}
+.badge h2{font-size:1.7rem}
+.delta{display:inline-block;font-weight:700;padding:2px 10px;border-radius:99px;background:var(--good-soft);color:var(--good)}
+details.sv{margin-top:36px;color:var(--muted);font-size:.9rem}
+details.sv summary{cursor:pointer;font-weight:600}
+details.sv textarea{font-family:var(--font-mono);font-size:.78rem;min-height:70px;margin-top:8px}
+.chk{display:flex;gap:12px;align-items:flex-start;width:100%;text-align:left;background:var(--surface);border:1.5px solid var(--line);border-radius:10px;padding:11px 14px;margin:7px 0;cursor:pointer}
+.chk i{flex:0 0 22px;height:22px;border-radius:6px;border:2px solid var(--line);margin-top:1px;position:relative}
+.chk.on{border-color:var(--brand);background:var(--brand-soft)}
+.chk.on i{background:var(--brand);border-color:var(--brand)}
+.chk.on i::after{content:"✓";color:var(--brand-ink);position:absolute;inset:0;display:grid;place-items:center;font-size:.85rem;font-weight:800}
+.cmp{width:100%;border-collapse:collapse;margin:12px 0}
+.cmp th,.cmp td{padding:9px 10px;border-bottom:1px solid var(--line);text-align:left}
+.cmp th{color:var(--muted);font-size:.85rem;font-weight:700}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 18px;border-radius:99px;font-weight:600;z-index:20;font-size:.95rem}
+@media (max-width:860px){
+  .home{grid-template-columns:minmax(0,1fr)}
+  .side{position:static;order:-1}
+  .split{grid-template-columns:minmax(0,1fr)}
+  .meter .track{width:90px}
+}
+@media (max-width:560px){
+  .sl{grid-template-columns:minmax(0,1fr) 120px;gap:2px 10px}
+  .sl label{grid-column:1/-1}
+  .sl input{grid-column:1}
+  .tm{grid-template-columns:minmax(0,1fr)}
+  .mod{grid-template-columns:40px minmax(0,1fr)}
+  .mod .tag{grid-column:2;text-align:left}
+  .fn{grid-template-columns:minmax(0,1fr)}
+  .bars div{grid-template-columns:70px minmax(0,1fr) 40px}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<div id="app"></div>
+<div id="toast" class="toast" hidden></div>
+
+<script>
+(function(){
+'use strict';
+
+/* ---------- Zustand ---------- */
+var KEY='ki-werkstatt-v1';
+var mem=null;
+function load(){
+  try{var r=localStorage.getItem(KEY); if(r) return JSON.parse(r);}catch(e){}
+  try{if(String(window.name).indexOf('KIW1:')===0) return JSON.parse(String(window.name).slice(5));}catch(e){}
+  return mem;
+}
+function persist(){
+  mem=JSON.parse(JSON.stringify(S));
+  try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){}
+  try{window.name='KIW1:'+JSON.stringify(S);}catch(e){}
+}
+var STORE_OK=(function(){try{localStorage.setItem('__kw','1');var v=localStorage.getItem('__kw');localStorage.removeItem('__kw');return v==='1';}catch(e){return false;}})();
+function storeWarn(){
+  if(STORE_OK)return '';
+  return '<div class="callout warn" style="margin:12px 0"><b class="t">Dein Browser speichert den Fortschritt nicht dauerhaft</b>Das liegt meist am Privatmodus, an einem In-App-Browser (z. B. aus WhatsApp oder Telegram) oder am Tracking-Schutz von Safari. Öffne den Link in einem normalen Browser-Fenster, dann klappt es. Solange das nicht geht, sicherst du dich so: Klicke unten auf „Fortschritt sichern“, kopiere den Code und hebe ihn auf (z. B. in einer Notiz). Beim nächsten Mal fügst du ihn dort wieder ein.<div class="row" style="margin-top:10px"><button class="btn small" data-act="quicksave">Code jetzt kopieren</button></div></div>';
+}
+var S=load()||{};
+S.assess2=S.assess2||{}; S.done=S.done||{}; S.modDone=S.modDone||{}; S.xp=S.xp||0; S.assess=S.assess||{}; S.func=S.func||{};
+S.base=S.base||{}; S.profile=S.profile||{tools:[]}; S.profile.tools=S.profile.tools||[];
+S.m2=S.m2||{tests:{}}; S.m1=S.m1||{}; S.m2.tests=S.m2.tests||{}; S.m3=S.m3||{}; S.quiz=S.quiz||{}; S.refl=S.refl||{}; S.hw=S.hw||{};
+var UI={view:'home',mod:null,step:0,nw:0,sw:{run:false,t0:0,acc:0},poll:null};
+
+function get(path){var o=S,p=path.split('.');for(var i=0;i<p.length;i++){if(o==null)return undefined;o=o[p[i]];}return o;}
+function set(path,v){var o=S,p=path.split('.');for(var i=0;i<p.length-1;i++){if(o[p[i]]==null)o[p[i]]=/^\d+$/.test(p[i+1])?[]:{};o=o[p[i]];}o[p[p.length-1]]=v;persist();}
+function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
+function md(s){return esc(s).replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>').replace(/==(.+?)==/g,'<mark>$1</mark>');}
+function toast(t){var el=document.getElementById('toast');el.textContent=t;el.hidden=false;clearTimeout(toast.h);toast.h=setTimeout(function(){el.hidden=true;},2200);}
+
+/* ---------- Daten ---------- */
+var SK=[['prompts','Prompts formulieren','Prompts'],['fakten','Antworten prüfen','Prüfen'],['recherche','Recherchieren','Recherche'],['daten','Dateien & Daten','Daten'],['schreiben','Texte & Mails','Schreiben'],['medien','Bilder & Sprache','Bild & Ton'],['workflow','Abläufe bauen','Abläufe'],['assistent','Eigene Assistenten','Assistent']];
+var SKTXT=['','noch nie gemacht','kaum','klappt manchmal','ziemlich sicher','mache ich souverän'];
+var FUNCS=[
+ ['upload','Dateien und Fotos anhängen','Plus-Symbol (+) links im Eingabefeld'],
+ ['search','Websuche','Im Plus-Menü oder automatisch bei aktuellen Fragen, mit Quellenlinks'],
+ ['think','Denkmodus „Think“','Im Eingabefeld oder oben beim Modellwähler'],
+ ['image','Bild erstellen','Plus-Menü, oder einfach „Erstelle ein Bild von …“ schreiben'],
+ ['voice','Sprachmodus','Wellen- oder Mikrofon-Symbol rechts im Eingabefeld'],
+ ['research','Deep Research','Plus-Menü, in der kostenlosen Version nur begrenzt'],
+ ['projects','Projekte','Seitenleiste links'],
+ ['memory','Gedächtnis','Profilbild, dann Einstellungen, dann Personalisierung'],
+ ['custom','Eigene Anweisungen','Profilbild, dann Einstellungen, dann Personalisierung']
+];
+var TOOLS=['Excel','Word','PowerPoint','Outlook','Teams','SharePoint','Copilot','SAP / ERP','Interne Tools','Sonstiges'];
+var NW=[
+ {s:'Sehr geehrte Damen und',o:[['Herren',93],['Herrn',2],['Kollegen',1]]},
+ {s:'Montagmorgen, 8 Uhr: Ich brauche erst mal einen',o:[['Kaffee',64],['Moment',14],['Plan',7],['Tee',5]]},
+ {s:'Der Kaffee im Büro ist schon wieder',o:[['leer',31],['kalt',24],['aus',17],['alle',9],['fertig',6]]},
+ {s:'Die Studie von Hartmann und Beyer erschien im Jahr',o:[['2019',22],['2020',19],['2018',16],['2021',14],['2017',9]]}
+];
+var NOTES_P='Notizen Wochenende:\n- Jonas will Fade, hinten kurz, Sa 15 Uhr bei mir\n- Tim sagt wieder ab, neuen Termin vorschlagen\n- 10 € pro Schnitt? Freunde zahlen eher 5, Material kostet mich ca. 1 € pro Schnitt\n- Bayern spielt Sa 18:30, bis dahin fertig sein\n- neue Klingen bestellen, Aufsätze 3 und 6 mm fehlen\n- Training Mo, Mi, Fr, Beintag nicht schon wieder auslassen\n- Jonas fragt, ob er Samstag auch den Bart machen lassen kann';
+function pv(){return get('base.ctx')==='priv';}
+function NT(){return pv()?NOTES_P:NOTES;}
+function WHO(){return pv()?'Jonas':'Hr. Köhler';}
+var CATS=[['entwurf','KI macht den Entwurf, ich prüfe','c1'],['gemeinsam','Wir arbeiten gemeinsam','c2'],['mensch','Bleibt bei mir','c3'],['neu','Neu: dafür hatte ich nie Zeit','c4']];
+var NOTES='Notizen Meeting Di:\n- Fa. Brandt will Angebot bis Fr\n- 12 Stk Modell B oder doch A? (klären)\n- Preis laut Hr. Köhler zu hoch\n- Lieferzeit max. 4 Wochen\n- wir könnten 5% geben, aber nur bei Abnahme über 10 Stk\n- Fr. Weiß fragt wegen Wartungsvertrag, noch offen\n- Folgetermin nächste Woche Do 14 Uhr?\n- Hr. Köhler ab 28. im Urlaub';
+
+/* ---------- Bausteine ---------- */
+function callout(kind,title,txt){return '<div class="callout '+kind+'">'+(title?'<b class="t">'+esc(title)+'</b>':'')+md(txt)+'</div>';}
+function exp(path,title,body,opts,reveal){var v=get(path);return '<h3>'+title+'</h3>'+body+'<p style="margin:12px 0 6px"><strong>Was ist passiert?</strong></p>'+choice(path,opts)+(v?callout('tip','Das steckt dahinter',reveal):'');}
+function copyBlock(label,text,id){return '<div class="copy"><header><span>'+esc(label)+'</span><button class="btn small" data-act="copy" data-text="'+encodeURIComponent(text)+'">Kopieren</button></header><pre'+(id?' id="'+id+'"':'')+'>'+esc(text)+'</pre></div>';}
+function ta(path,ph,rows){return '<textarea data-bind="'+path+'" rows="'+(rows||3)+'" placeholder="'+esc(ph||'')+'">'+esc(get(path)||'')+'</textarea>';}
+function inp(path,ph){return '<input type="text" data-bind="'+path+'" value="'+esc(get(path)||'')+'" placeholder="'+esc(ph||'')+'">';}
+function choice(path,opts){var cur=get(path);return '<div class="opts">'+opts.map(function(o){return '<button class="opt'+(cur===o[0]?' on':'')+'" data-act="set" data-path="'+path+'" data-val="'+esc(o[0])+'">'+esc(o[1])+'</button>';}).join('')+'</div>';}
+function fld(label,inner){return '<div class="fld"><label>'+esc(label)+'</label>'+inner+'</div>';}
+function flips(list){return '<div class="flips">'+list.map(function(c){return '<button class="flip" data-act="flip"><span class="q">'+esc(c[0])+'</span><span class="a">'+md(c[1])+'</span><span class="hint">Antippen zum Aufdecken</span></button>';}).join('')+'</div>';}
+function quiz(id,q,opts,right,exp,target){
+  var sel=S.quiz[id];var done=sel!=null;
+  var order=[];opts.forEach(function(_,i){if(i!==right)order.push(i);});
+  order.splice(Math.min(target||0,opts.length-1),0,right);
+  return '<div class="quiz"><h4>'+esc(q)+'</h4>'+order.map(function(i){
+    var cls='qo';if(done){if(i===right)cls+=' right';else if(i===sel)cls+=' wrong';}
+    return '<button class="'+cls+'" data-act="quiz" data-id="'+id+'" data-i="'+i+'" data-right="'+right+'"'+(done?' disabled':'')+'>'+esc(opts[i])+'</button>';
+  }).join('')+(done?'<p class="exp"><strong>'+(sel===right?'Richtig. ':'Nicht ganz. ')+'</strong>'+md(exp)+'</p>':'')+'</div>';
+}
+function quizDone(ids){return ids.every(function(i){return S.quiz[i]!=null;});}
+
+/* ---------- Radar ---------- */
+function radar(vals,show,ghost){
+  var cx=210,cy=165,R=100,n=SK.length,out='<svg class="radar" viewBox="0 0 420 330" role="img" aria-label="Radar der acht Fähigkeiten">';
+  function pt(i,v){var a=(-90+i*360/n)*Math.PI/180;return [cx+R*v/5*Math.cos(a),cy+R*v/5*Math.sin(a)];}
+  for(var r=1;r<=5;r++){var ps=[];for(var i=0;i<n;i++)ps.push(pt(i,r).map(function(x){return x.toFixed(1);}).join(','));out+='<polygon class="ring" points="'+ps.join(' ')+'"/>';}
+  for(var i=0;i<n;i++){var e=pt(i,5);out+='<line class="axis" x1="'+cx+'" y1="'+cy+'" x2="'+e[0].toFixed(1)+'" y2="'+e[1].toFixed(1)+'"/>';
+    var a=(-90+i*360/n)*Math.PI/180,c=Math.cos(a),lx=cx+(R+14)*c,ly=cy+(R+14)*Math.sin(a)+4,an=c>0.3?'start':(c<-0.3?'end':'middle');
+    out+='<text x="'+lx.toFixed(1)+'" y="'+ly.toFixed(1)+'" text-anchor="'+an+'">'+esc(SK[i][2])+'</text>';}
+  if(ghost){var g=[];for(var i=0;i<n;i++)g.push(pt(i,ghost[SK[i][0]]||1).map(function(x){return x.toFixed(1);}).join(','));out+='<polygon class="ghost" points="'+g.join(' ')+'"/>';}
+  if(show){var q=[],dots='';for(var i=0;i<n;i++){var p=pt(i,vals[SK[i][0]]||1);q.push(p[0].toFixed(1)+','+p[1].toFixed(1));dots+='<circle class="pt" cx="'+p[0].toFixed(1)+'" cy="'+p[1].toFixed(1)+'" r="3.6"/>';}
+    out+='<polygon class="shape" points="'+q.join(' ')+'"/>'+dots;}
+  return out+'</svg>';
+}
+function radarCard(){
+  var done=S.assessDone,two=S.assess2done;
+  return '<div class="card"><h3>Dein Radar</h3>'+(two?radar(S.assess2,true,S.assess):radar(S.assess,done))+
+   '<div class="legend">'+(two?'<span><i></i>Jetzt</span><span><i class="g"></i>Start (Modul 1)</span>':((done?'<span><i></i>Jetzt</span>':'<span>Wird in Modul 1 gefüllt</span>')+'<span><i class="g"></i>Nachher: Modul 14</span>'))+'</div></div>';
+}
+var HAIR='Monat;Haarschnitte;Preis pro Schnitt;Materialkosten\nJan;8;5;12\nFeb;10;5;14\nMär;12;6;15\nApr;9;6;13\nMai;15;7;20\nJun;18;7;22';
+var SALES='Monat;Region;Umsatz;Kunden\nJan;Nord;42000;118\nJan;Süd;51000;140\nFeb;Nord;39500;110\nFeb;Süd;55200;152\nMär;Nord;47100;126\nMär;Süd;49800;138\nApr;Nord;52300;131\nApr;Süd;47900;129\nMai;Nord;58800;149\nMai;Süd;46500;121\nJun;Nord;61200;155\nJun;Süd;44100;117';
+var PROTO='Protokoll Projektbesprechung (Rohfassung)\nAnwesend: Hr. Berg, Fr. Lang, Hr. Okafor, ich.\nBerg: Release verschiebt sich wohl um eine Woche, Tests nicht fertig. Lang meint, das sei zu optimistisch, Testumgebung hängt seit Montag. Okafor will den Hotfix für den Import-Fehler vorziehen. Einigung: Hotfix zuerst, Release erst nach Freigabe durch Lang. Berg prüft bis Mittwoch, ob die Testumgebung stabil läuft. Budget für externe Tester noch offen, Entscheidung beim nächsten Treffen. Fr. Lang schickt die Fehlerliste bis morgen. Nächstes Treffen: Dienstag 10 Uhr.';
+function refl(path,label){return '<h3>Reflexion</h3>'+fld(label,ta(path,'',2));}
+function hwb(id,txt){return '<h3>Alltagsmission (freiwillig)</h3><button class="opt'+(S.hw[id]?' on':'')+'" data-act="hw" data-id="'+id+'">'+(S.hw[id]?'Erledigt':'Als erledigt markieren')+'</button><p style="margin-top:8px;color:var(--muted)">'+esc(txt)+'</p>';}
+function chk(path,label){var on=!!get(path);return '<button class="chk'+(on?' on':'')+'" data-act="chk" data-path="'+path+'"><i></i><span>'+esc(label)+'</span></button>';}
+function gv(path,d){var v=get(path);return (v&&String(v).trim())||d;}
+function p5(){return 'Du bist '+gv('m4.f.rolle','[Rolle]')+'.\nAufgabe: '+gv('m4.f.aufgabe','[Aufgabe]')+'\nKontext: '+gv('m4.f.kontext','[Kontext]')+'\nFormat: '+gv('m4.f.format','[Format]')+'\nGrenzen: '+gv('m4.f.grenzen','Erfinde nichts. Frage nach, wenn etwas fehlt.');}
+function p6a(){return 'Nutze die Websuche: Was hat sich bei '+gv('m6.topic','[Thema]')+' in den letzten drei Monaten geändert? Fasse es in fünf Stichpunkten zusammen und nenne zu jeder Aussage die Quelle mit Link.';}
+function p9(){return 'Erstelle ein Bild: '+gv('m9.topic','[Thema]')+'. Stil: moderne flache Vektorgrafik, klare Formen. Stimmung: kraftvoll und sauber. Farben: Rot, Schwarz und Weiß. Format: Querformat 16:9, viel Weißraum.';}
+function p11(){return 'Ich möchte '+gv('m11.topic','[Thema]')+' lernen. Erkläre mir die Grundlagen so, dass es ein Neuling versteht, in fünf Schritten mit je einem Beispiel. Stelle mir danach nacheinander fünf Quizfragen, warte auf meine Antworten und korrigiere sie.';}
+function p13(){return 'Ich möchte eine wiederkehrende Aufgabe mit ChatGPT beschleunigen.\nAufgabe: '+gv('m13.task','[Aufgabe]')+'\nHäufigkeit: '+gv('m13.freq','[wie oft]')+'\nDauer heute: '+gv('m13.min','[?]')+' Minuten\nErgebnis soll sein: '+gv('m13.out','[Format]')+'\nQualitätskriterien: '+gv('m13.crit','[Kriterien]')+'\n\nStelle mir zuerst bis zu drei Rückfragen. Liefere danach: 1) Projektanweisungen (maximal 150 Wörter) für ein ChatGPT-Project, 2) eine Eingabevorlage mit Platzhaltern in [eckigen Klammern], 3) eine Checkliste, mit der ich das Ergebnis prüfe.';}
+function p14(){var sec=Number(get('m14.sec'))||0;var nu=sec?Math.max(1,Math.round(sec/60))+' Minuten':'[neue Dauer]';return 'Schreibe eine einseitige Anleitung für Kollegen und Freunde: Wie ich KI im Job und privat einsetze. Mein Beispiel: '+gv('m13.task','[Aufgabe]')+', vorher '+gv('m13.min','[?]')+' Minuten, jetzt '+nu+'. Enthalten sein sollen: 1) die fünf Prompt-Bausteine, 2) drei Tipps zum Prüfen der Ergebnisse, 3) ein Mini-Beispiel zum Ausprobieren. Ton: locker, aber professionell. Maximal 300 Wörter.';}
+var LIVE={'live-p5':p5,'live-p6a':p6a,'live-p9':p9,'live-p11':p11,'live-p13':p13,'live-p14':p14,'taskprompt':function(){return taskPrompt();}};
+function updateLive(){Object.keys(LIVE).forEach(function(id){var el=document.getElementById(id);if(el){var t=LIVE[id]();el.textContent=t;var b=el.closest('.copy').querySelector('[data-act=copy]');if(b)b.setAttribute('data-text',encodeURIComponent(t));}});}
+function words(t){return (t||'').trim().split(/\s+/).filter(Boolean).length;}
+function compare(){
+  var bs=Number(S.base.sec)||((Number(String(S.base.manual||'').replace(',','.'))||0)*60),as=Number(get('m14.cs'))||0;
+  var br=Number(S.base.rating)||0,ar=Number(get('m14.cr'))||0;
+  if(!as&&!ar)return '';
+  var dt=(bs&&as)?(as<bs?'<span class="delta">'+Math.round((1-as/bs)*100)+' % schneller</span>':'<span class="delta" style="background:var(--surface2);color:var(--ink)">dafür gründlicher?</span>'):'';
+  var dr=(br&&ar)?(ar>br?'<span class="delta">+'+(ar-br)+' Stufen</span>':''):'';
+  return '<h3>Vorher und Nachher</h3><div style="overflow-x:auto"><table class="cmp"><tr><th></th><th>Modul 1</th><th>Jetzt</th><th></th></tr>'+
+   '<tr><td>Zeit</td><td>'+(bs?fmt(Math.round(bs)):'–')+'</td><td>'+(as?fmt(as):'–')+'</td><td>'+dt+'</td></tr>'+
+   '<tr><td>Qualität (1 bis 5)</td><td>'+(br||'–')+'</td><td>'+(ar||'–')+'</td><td>'+dr+'</td></tr>'+
+   '<tr><td>Wörter im Prompt</td><td>'+words(S.base.prompt)+'</td><td>'+words(get('m14.cprompt'))+'</td><td></td></tr></table></div>'+
+   '<details><summary style="cursor:pointer;font-weight:600">Beide Prompts nebeneinander ansehen</summary><div class="grid3"><div><b>Modul 1</b>'+esc(S.base.prompt||'(nichts eingetragen)')+'</div><div><b>Jetzt</b>'+esc(get('m14.cprompt')||'(nichts eingetragen)')+'</div></div></details>';
+}
+function bonusCard(){
+  var h=Number(get('bonus.h'));if(isNaN(h)||get('bonus.h')==null)h=2;var rate=Number(String(get('bonus.rate')||'25').replace(',','.'))||0;
+  var mon=Math.round(h*4.3*10)/10,val=Math.round(mon*rate);
+  return '<div class="card" style="margin-top:14px"><h3>Der Testmonat: lohnt sich ein Abo?</h3>'+
+   '<p>Die Bonus-Module brauchen einen bezahlten Plan. Du kannst Plus einen Monat testen und danach kündigen. Preis: etwa 21 € pro Monat inklusive MwSt. (Stand Herbst 2026, bitte vor der Buchung prüfen).</p>'+
+   '<div class="sl"><label for="bh">Gesparte Stunden pro Woche</label><input id="bh" type="range" min="0" max="10" step="1" value="'+h+'" data-bind="bonus.h" data-num="0"><output id="bh-o">'+h+' Std.</output></div>'+
+   '<div class="fld"><label>Dein Stundenwert in Euro (nur für diese Beispielrechnung)</label><input type="text" data-bind="bonus.rate" value="'+esc(get('bonus.rate')||'25')+'"></div>'+
+   '<p id="bonus-out" style="font-weight:600">'+bonusText(mon,val)+'</p>'+
+   '<h3>Dein Plan für den Testmonat</h3>'+chk('bonus.c1','Ein eigenes GPT bauen (B1)')+chk('bonus.c2','Deep Research in voller Tiefe testen (B2)')+chk('bonus.c3','Eine geplante Aufgabe einrichten (B3)')+chk('bonus.c4','Ein Meeting-Memo transkribieren lassen (B4)')+chk('bonus.c5','Am Ende bilanzieren: Wie viele Stunden habe ich wirklich gespart?')+chk('bonus.c6','Kündigungstermin im Kalender eintragen, falls ich nicht weitermache')+'</div>';
+}
+function bonusText(mon,val){return 'Etwa '+mon+' Stunden im Monat entsprechen rechnerisch rund '+val+' €. Das Abo kostet etwa 21 €. Entscheidend ist, ob du die Zeit wirklich einsparst.';}
+function role(){return (S.profile.role||'').trim()||'Mitarbeiter in der Materialsteuerung';}
+
+/* ---------- Module ---------- */
+function sliders(key){key=key||'assess';var ghost=key==='assess2'?S.assess:null;
+  return '<div>'+SK.map(function(k){var v=S[key][k[0]]||1;
+    return '<div class="sl"><label for="as-'+k[0]+'">'+esc(k[1])+'</label><input id="as-'+k[0]+'" type="range" min="1" max="5" step="1" value="'+v+'" data-bind="'+key+'.'+k[0]+'" data-num="1"><output id="o-'+k[0]+'">'+SKTXT[v]+'</output></div>';}).join('')+
+    '</div><div id="radar-live" style="max-width:440px;margin:18px auto 0">'+radar(S[key],true,ghost)+'</div>';
+}
+var SW={};
+function swo(path){return SW[path]||(SW[path]={run:false,t0:0,acc:0});}
+function swEl(path){var o=swo(path);return o.acc+(o.run?Date.now()-o.t0:0);}
+function stopwatch(path){var o=swo(path),el=Math.round(swEl(path)/1000),saved=Number(get(path))||0;
+  return '<div class="card" style="margin:14px 0"><div class="sw" data-sw="'+path+'">'+fmt(el)+'</div><div class="row">'+
+    (o.run?'<button class="btn" data-act="swstop" data-path="'+path+'">Stopp</button>':'<button class="btn" data-act="swstart" data-path="'+path+'">'+(el>0?'Weiter':'Start')+'</button>')+
+    '<button class="btn ghost" data-act="swreset" data-path="'+path+'">Zurücksetzen</button></div>'+
+    (saved?'<p style="margin:10px 0 0;color:var(--muted)">Gespeichert: <strong>'+fmt(saved)+'</strong></p>':'')+'</div>';
+}
+function fmt(s){var m=Math.floor(s/60),r=s%60;return m+':'+(r<10?'0':'')+r;}
+
+function taskPrompt(){
+  var t=(S.m3.tasks||[]).filter(function(x){return x.name&&x.name.trim();});
+  var role=(S.profile.role||'').trim()||'Mitarbeiter in der Materialsteuerung';
+  var tools=(S.profile.tools||[]).length?S.profile.tools.join(', '):'Excel, Word und PowerPoint';
+  var list=t.length?t.map(function(x){return '- '+x.name.trim();}).join('\n'):'- (hier trägst du oben deine Aufgaben ein)';
+  return 'Ich arbeite als '+role+' und nutze '+tools+'. Privat mache ich: '+gv('profile.hobby','Sport und Hobbys')+'. Das sind meine wiederkehrenden Aufgaben, beruflich und privat:\n'+list+'\n\nOrdne jede Aufgabe einer von drei Gruppen zu:\nA) KI macht den Entwurf, ich prüfe\nB) Wir arbeiten gemeinsam\nC) Bleibt bei mir (mit kurzer Begründung)\n\nGib mir das als Tabelle. Nenne danach drei Dinge, die ich mit der gewonnenen Zeit Neues anfangen könnte, und stelle mir am Ende zwei Rückfragen, damit du deine Einschätzung verbessern kannst.';
+}
+function ensureTasks(){
+  if(S.m3.tasks) return;
+  var arr=[];[S.profile.t1,S.profile.t2,S.profile.t3,S.profile.p1,S.profile.p2,S.profile.pain].concat(S.m3.eaters||[]).forEach(function(x){if(x&&x.trim()&&arr.length<8)arr.push({name:x.trim(),cat:''});});
+  while(arr.length<5)arr.push({name:'',cat:''});
+  S.m3.tasks=arr;persist();
+}
+function taskmap(){
+  ensureTasks();
+  var rows=S.m3.tasks.map(function(t,i){
+    return '<div class="tm"><input type="text" data-bind="m3.tasks.'+i+'.name" value="'+esc(t.name)+'" placeholder="Aufgabe '+(i+1)+'" aria-label="Aufgabe '+(i+1)+'"><select data-bind="m3.tasks.'+i+'.cat" data-rerender="1" aria-label="Einordnung Aufgabe '+(i+1)+'"><option value="">Einordnen …</option>'+CATS.map(function(c){return '<option value="'+c[0]+'"'+(t.cat===c[0]?' selected':'')+'>'+esc(c[1])+'</option>';}).join('')+'</select></div>';}).join('');
+  var cnt={},tot=0;CATS.forEach(function(c){cnt[c[0]]=0;});S.m3.tasks.forEach(function(t){if(t.cat){cnt[t.cat]++;tot++;}});
+  var bar=tot?'<div class="sumbar">'+CATS.map(function(c){return '<i class="'+c[2]+'" style="width:'+(cnt[c[0]]/tot*100)+'%"></i>';}).join('')+'</div>':'';
+  var key='<div class="key">'+CATS.map(function(c){return '<span><i class="'+c[2]+'"></i>'+esc(c[1])+' ('+cnt[c[0]]+')</span>';}).join('')+'</div>';
+  return rows+'<div class="row"><button class="btn ghost small" data-act="addtask">Aufgabe hinzufügen</button></div>'+(tot?'<h3>Deine Verteilung</h3>'+bar+key:'');
+}
+
+var MODS=[
+{id:'m1',stage:'A',n:1,title:'Standortbestimmung',sub:'Ankommen, einrichten, Ausgangswert festhalten',badge:['1','Erste Messung gesichert','Dein Ausgangswert steht. Am Ende des Kurses legen wir die Ergebnisse nebeneinander.'],steps:[
+ {t:'Check-in',m:4,r:function(){return '<h2>Willkommen in der KI-Werkstatt</h2>'+
+  '<p class="lead">'+md('Hier lernst du ChatGPT nicht durch Zuschauen, sondern durch Machen. In 14 Modulen wirst du vom ==Fragensteller== zu jemandem, der KI gezielt einsetzt, Abläufe baut und anderen zeigt, wie es geht.')+'</p>'+
+  '<div class="grid3"><div><b>15 bis 20 Minuten</b>Jedes Modul ist ein Kurztraining: Check-in, Wissen, Mission, Abschluss.</div><div><b>Nur kostenlos</b>Alles läuft mit der kostenlosen Version. Bezahl-Funktionen stecken in optionalen Bonus-Modulen.</div><div><b>Zwei Fenster</b>Lass chatgpt.com in einem zweiten Tab offen. Du liest hier und übst dort.</div></div>'+
+  callout('tip','Tagesbudget','Die kostenlose Version erlaubt nur wenige Uploads und Bilder pro Tag. Plane 1 bis 2 Module pro Tag, dann reicht das Kontingent locker.')+
+  '<h3>Wie sicher fühlst du dich heute?</h3><p>Bewerte ehrlich. Niedrige Werte sind ein guter Start, denn sie machen den Fortschritt später sichtbar.</p>'+sliders();}},
+ {t:'Setup',m:5,r:function(){return '<h2>Dein Zugang und der Funktions-Check</h2>'+
+  '<p>'+md('Öffne **chatgpt.com** und melde dich mit einem kostenlosen Konto an. Ohne Anmeldung fehlen wichtige Funktionen, und nichts wird gespeichert.')+'</p>'+
+  callout('','Handy','Installiere die ChatGPT-App (iOS oder Android) und melde dich mit demselben Konto an. Ab Modul 9 brauchst du sie.')+
+  '<h3>Was siehst du in deinem Konto?</h3><p>OpenAI baut die Oberfläche ständig um. Prüfe deshalb selbst, was bei dir vorhanden ist. „Sehe ich nicht“ ist völlig in Ordnung, für jede Lücke gibt es später eine Alternative.</p>'+
+  FUNCS.map(function(f){return '<div class="fn"><div><b>'+esc(f[1])+'</b><small>'+esc(f[2])+'</small></div>'+choice('func.'+f[0],[['ja','Sehe ich'],['nein','Sehe ich nicht']])+'</div>';}).join('')+'<h3>Dein erster Prompt</h3><p>Zeit für den ersten Chat. Kopiere diesen Prompt in ChatGPT und lies die Antwort.</p>'+copyBlock('Prompt','Hallo! Erkläre mir in drei Sätzen, was du im Alltag für mich tun kannst, im Job und privat. Stelle mir danach eine Rückfrage zu meinem Beruf und eine zu meinen Hobbys.')+'<p><strong>Hat es geklappt?</strong></p>'+choice('m1.first',[['ja','Ja, Antwort erhalten'],['nein','Nein, es gibt ein Problem']])+(get('m1.first')==='nein'?callout('','Kein Problem','Prüfe, ob du eingeloggt bist, und lade die Seite neu. Falls es weiter nicht klappt, mach trotzdem weiter. Die nächsten Schritte kannst du später nachholen.'):'');}},
+ {t:'Vorher-Challenge',m:8,r:function(){return '<h2>Die Vorher-Challenge</h2>'+
+  '<p>'+md('Wir messen, wo du heute stehst. Löse die Aufgabe so, **wie du es heute tun würdest**. Kein Spickzettel, kein Perfektionismus. Am Ende des Kurses wiederholst du sie und siehst den Unterschied.')+'</p>'+
+  '<h3>Die Aufgabe</h3><p>Wähle eine Variante. Im Modul 14 wiederholst du genau diese.</p>'+choice('base.ctx',[['job','Job: Kundentermin'],['priv','Privat: Wochenende']])+'<p>'+(pv()?md('Du hast chaotische Notizen vom Wochenende (alles erfunden: Haarschnitte, Training, Bayern-Spiel). Bitte ChatGPT um: ==1. eine freundliche Nachricht== an Jonas und ==2. eine To-do-Liste== für dich.'):md('Du hast chaotische Notizen aus einem Kundentermin (alles erfunden). Bitte ChatGPT um: ==1. eine professionelle Mail== an Hr. Köhler und ==2. eine To-do-Liste== für dich.'))+'</p>'+
+  copyBlock('Notizen zum Kopieren',NT())+
+  '<h3>Stoppuhr</h3><p>Starte sie, sobald du ChatGPT öffnest. Stoppe, wenn du die Nachricht so versenden würdest.</p>'+stopwatch('base.sec')+
+  fld('Oder: Zeit in Minuten selbst eintragen',inp('base.manual','z. B. 6'))+
+  fld('Dein Prompt, genau so wie du ihn eingegeben hast',ta('base.prompt','Hier einfügen …',4))+
+  fld('Das Ergebnis finde ich',choice('base.rating',[['1','schwach'],['2','geht so'],['3','okay'],['4','gut'],['5','sehr gut']]))+
+  fld('Was stört dich am Ergebnis?',ta('base.issue','Zu lang, zu steif, Infos fehlen …',2))+
+  callout('tip','','Es gibt kein falsches Ergebnis. Dieser Wert ist dein persönlicher Nullpunkt.');}},
+ {t:'Dein Alltag',m:4,r:function(){return '<h2>Dein Alltag in Stichworten: Job und Privat</h2>'+
+  '<p>Damit die späteren Übungen zu dir passen, brauche ich ein paar Angaben, zur Hälfte beruflich, zur Hälfte privat. Beschreibe Aufgaben allgemein, Details sind nicht nötig.</p>'+callout('','Denkanstöße für die Materialsteuerung','Lieferanten nachfassen und Termine bestätigen, Bestände und Bedarfe abgleichen, Abweichungen und Engpässe melden, Statusberichte und Meeting-Protokolle schreiben, Excel-Auswertungen, Rückfragen von Kollegen beantworten. Du bekommst ein Gefühl, wo KI Entwürfe liefert und wo dein Fachwissen unersetzlich ist.')+callout('','Denkanstöße privat','Trainingsplan und Ernährung, Haarschnitt-Termine abstimmen, Einnahmen und Materialkosten fürs Haareschneiden kalkulieren, Spieltags-Planung mit Freunden, Tippspiel, Einkaufsliste, Geschenkideen, Urlaub planen.')+
+  fld('Was machst du beruflich?',inp('profile.role','z. B. Materialsteuerung im Industriekonzern'))+
+  fld('Drei Aufgaben, die regelmäßig anfallen',inp('profile.t1','Aufgabe 1')+'<div style="height:8px"></div>'+inp('profile.t2','Aufgabe 2')+'<div style="height:8px"></div>'+inp('profile.t3','Aufgabe 3'))+
+  fld('Welche Aufgabe nervt dich am meisten?',inp('profile.pain','z. B. Bestandslisten abgleichen, Lieferanten nachfassen'))+
+  fld('Was machst du privat gern?',inp('profile.hobby','z. B. Fitness, Haare schneiden für Freunde, Fußball (Bayern München)'))+
+  fld('Zwei private Aufgaben, die regelmäßig anfallen',inp('profile.p1','z. B. Trainingsplan anpassen')+'<div style="height:8px"></div>'+inp('profile.p2','z. B. Haarschnitte abrechnen'))+
+  fld('Womit arbeitest du?','<div class="opts">'+TOOLS.map(function(t){var on=S.profile.tools.indexOf(t)>-1;return '<button class="opt'+(on?' on':'')+'" data-act="tool" data-val="'+esc(t)+'">'+esc(t)+'</button>';}).join('')+'</div>')+
+  '<h3>Kurze Reflexion</h3>'+fld('Was erhoffst du dir von KI, im Job und privat?',ta('refl.m1','Ehrlich, das liest nur dein künftiges Ich.',3));}}
+ ]},
+{id:'m2',stage:'A',n:2,title:'Wie KI „denkt“',sub:'Drei Experimente direkt im Chat statt Vorlesung',badge:['2','Halluzinations-Detektiv','Du erkennst jetzt, wann ChatGPT souverän danebenliegt. Das ist die wichtigste Profi-Fähigkeit.'],steps:[
+ {t:'Check-in',m:2,r:function(){var p=UI.poll;var o=[['a','Es schlägt die Antwort in einer riesigen Datenbank nach'],['b','Es sagt Wort für Wort voraus, was wahrscheinlich als Nächstes kommt'],['c','Es versteht Fragen wie ein Mensch und denkt nach'],['d','Es googelt im Hintergrund']];
+  o=[o[2],o[0],o[3],o[1]];return '<h2>Tipp abgeben</h2><p>Was glaubst du: Wie kommt ChatGPT zu einer Antwort?</p>'+'<div>'+o.map(function(x){var cls='qo'+(p?(x[0]==='b'?' right':(p===x[0]?' wrong':'')):'');return '<button class="'+cls+'" data-act="poll" data-val="'+x[0]+'"'+(p?' disabled':'')+'>'+esc(x[1])+'</button>';}).join('')+'</div>'+
+  (p?callout('tip','Aufgelöst','Antwort B ist die Grundidee. ChatGPT berechnet, welches Wort statistisch gut zum bisherigen Text passt, immer wieder. Das klingt banal, ergibt aber erstaunlich kluge Texte. Gleich siehst du es selbst.'):'');}},
+ {t:'Experimente',m:7,r:function(){return '<h2>Drei Experimente im Chat</h2>'+
+  '<p>'+md('Kein Vortrag: Du probierst es **selbst bei ChatGPT** aus und siehst, wie es tickt. Öffne chatgpt.com in einem zweiten Tab und arbeite die Experimente der Reihe nach ab.')+'</p>'+
+  exp('m2.exA','Experiment 1: Gleiche Frage, neue Antwort?','<p>Öffne zwei Mal einen <strong>neuen Chat</strong> und stelle jedes Mal exakt diese Frage:</p>'+copyBlock('Prompt','Nenne mir einen Namen für einen kleinen Barbershop unter Freunden und begründe ihn in einem Satz.'),
+    [['gleich','Beide Antworten gleich'],['anders','Die Antworten waren verschieden']],
+    'ChatGPT würfelt bei jedem Wort ein bisschen mit. Für Ideen ist das ein Geschenk. Bei exakten Fakten ist es ein Risiko. Daher: Bei Wichtigem nachfragen und prüfen.')+
+  exp('m2.exB','Experiment 2: Wer erinnert sich?','<p>Schreibe in einem neuen Chat:</p>'+copyBlock('Prompt 1','Merke dir: Mein Lieblingsessen ist Linsensuppe. Antworte nur mit „OK“.')+'<p>Frage dann im <strong>selben Chat</strong> und danach in einem <strong>neuen Chat</strong>:</p>'+copyBlock('Prompt 2','Was ist mein Lieblingsessen?'),
+    [['kennt','Im alten Chat ja, im neuen nein'],['immer','Beide Male gewusst'],['nie','Beide Male nicht gewusst']],
+    'Ein Chat ist wie ein Notizzettel: Alles darauf kennt ChatGPT, ein neuer Chat startet leer. Das nennt man Kontextfenster. Wenn du bei Gedächtnis „beide Male gewusst“ gewählt hast, ist die Memory-Funktion bei dir aktiv. Die bauen wir in Modul 10 gezielt ein.')+
+  exp('m2.exC','Experiment 3: Schnell oder gründlich?','<p>Stelle diese Knobelfrage zuerst im normalen Modus, dann mit aktiviertem <strong>Think</strong> (siehe Funktions-Check in Modul 1):</p>'+copyBlock('Prompt','Ein Schläger und ein Ball kosten zusammen 1,10 €. Der Schläger kostet 1 € mehr als der Ball. Was kostet der Ball?')+'<p>Die richtige Lösung sind 5 Cent.</p>',
+    [['beide','Beide Modi richtig'],['think','Nur Think richtig'],['keine','Keiner richtig'],['nothink','Think nicht gefunden']],
+    'Think lässt ChatGPT länger nachdenken. Das lohnt sich bei Logik, Rechnen und Planen. Für eine kurze Mail wäre es Verschwendung. In der kostenlosen Version ist Think begrenzt, setze ihn gezielt ein.')+
+  callout('tip','Faustregel','**Vertraue für die Form, prüfe für die Fakten.** Gleich übst du das in der Mission.');}},
+ {t:'Mission',m:7,r:function(){var T=S.m2.tests;function res(k){return choice('m2.tests.'+k,[['ok','Hat es richtiggestellt'],['hal','Hat es erfunden'],['unsure','War vorsichtig']]);}
+  return '<h2>Mission: Halluzinations-Detektiv</h2><p>'+md('Du stellst ChatGPT drei Fallen. Öffne für **jeden Test einen neuen Chat** (links oben „Neuer Chat“) und notiere, wie es reagiert. Ob es patzt, hängt vom Tag ab. Das Ziel ist der Prüfblick.')+'</p>'+
+  '<h3>Test 1: Die erfundene Studie</h3>'+copyBlock('Prompt','Fasse mir die Studie „Hartmann & Beyer (2019): Kreatin und Sprintleistung bei Hobbyfußballern“ zusammen. Nenne die Kernergebnisse und die Stichprobengröße.')+res('t1')+
+  '<h3>Test 2: Die falsche Prämisse</h3>'+copyBlock('Prompt','Erkläre mir, warum Sydney die Hauptstadt von Australien ist.')+res('t2')+
+  '<h3>Test 3: Der Druck-Test</h3><p>Schreibe nach einer beliebigen richtigen Antwort aus Test 1 oder 2:</p>'+copyBlock('Prompt','Bist du dir sicher? Ich glaube, das stimmt nicht.')+
+  '<p>Bleibt ChatGPT bei der richtigen Antwort, oder knickt es ein?</p>'+choice('m2.tests.t3',[['ok','Blieb standhaft'],['hal','Knickte ein'],['unsure','Wurde unsicher']])+
+  '<h3>Test 4: Das Gegenmittel</h3><p>Wiederhole Test 1 in einem neuen Chat mit diesem Zusatz:</p>'+copyBlock('Zusatz am Ende des Prompts','Wenn du dir nicht sicher bist oder die Quelle nicht kennst, sag das ausdrücklich. Erfinde nichts.')+res('t4')+
+  fld('Was ist dir aufgefallen?',ta('m2.note','Z. B. Unterschied zwischen Test 1 und Test 4 …',3))+
+  callout('tip','Merke dir','Der Zusatz „Sag, wenn du dir nicht sicher bist“ ist der einfachste Profi-Trick überhaupt. Du wirst ihn in Modul 4 in deine Prompt-Bausteine einbauen.');}},
+ {t:'Abschluss',m:4,r:function(){return '<h2>Abschluss</h2>'+
+  quiz('m2q1','Warum erfindet ChatGPT manchmal Quellen?',['Es lügt absichtlich','Es erzeugt wahrscheinlich klingende Texte und ist kein Faktenarchiv','Die Internetverbindung fehlt','Die Rechenleistung reicht nicht'],1,'ChatGPT setzt Wörter nach Wahrscheinlichkeit zusammen. Absicht steckt nicht dahinter.',2)+
+  quiz('m2q2','Was erhöht die Zuverlässigkeit am meisten?',['Den Prompt in Großbuchstaben schreiben','Quellen verlangen und stichprobenartig selbst gegenprüfen','Besonders höflich formulieren','Immer einen neuen Chat starten'],1,'Quellen einzufordern und zu prüfen deckt Erfindungen auf. Lautstärke und Höflichkeit ändern nichts an den Fakten.',0)+
+  quiz('m2q3','Wofür ist ChatGPT im Alltag besonders sicher einsetzbar?',['Das genaue Ergebnis des letzten Bayern-Spiels aus dem Gedächtnis nennen','Entwürfe, Umformulieren und Strukturieren','Gesetzeslage ohne Quelle erklären','Zitate mit Seitenzahl liefern'],1,'Form ist die Stärke. Bei Fakten gilt: erst prüfen, dann nutzen.',3)+
+  '<h3>Reflexion</h3>'+fld('Welche Aufgabe würdest du ChatGPT nur mit Gegenprüfung überlassen?',ta('refl.m2','',2))+
+  '<h3>Alltagsmission (freiwillig)</h3><button class="opt'+(S.hw.m2?' on':'')+'" data-act="hw" data-id="m2">'+(S.hw.m2?'Erledigt':'Als erledigt markieren')+'</button><p style="margin-top:8px;color:var(--muted)">Stelle diese Woche ChatGPT drei Fragen, deren Antwort du selbst kennst, und bewerte die Treffer.</p>';},need:['m2q1','m2q2','m2q3']}
+ ]},
+{id:'m3',stage:'A',n:3,title:'KI im Alltag: Job und Privat',sub:'Wo dir KI Zeit schenkt und was bei dir bleibt',badge:['3','Dirigent in Ausbildung','Du siehst KI jetzt als Werkzeug, das du führst. Damit ist Stufe A geschafft.'],steps:[
+ {t:'Zeitfresser-Check',m:3,r:function(){var E=['E-Mails schreiben','Protokolle und Notizen','Excel-Auswertungen','Berichte und Reports','Training planen','Haarschnitt-Termine und Abrechnung','Essen und Einkauf planen','Spieltage und Events planen'];var cur=S.m3.eaters||[];
+  return '<h2>Wo geht deine Zeit hin?</h2><p>'+md('Wähle die Aufgaben, die dich im Alltag **am meisten Zeit** kosten. Genau dort lohnt sich KI zuerst.')+'</p>'+
+  '<div class="opts">'+E.map(function(x){return '<button class="opt'+(cur.indexOf(x)>-1?' on':'')+'" data-act="eat" data-val="'+esc(x)+'">'+esc(x)+'</button>';}).join('')+'</div>'+
+  fld('Sonst noch etwas?',inp('m3.eatother','z. B. Rechnungen prüfen oder Urlaub planen'))+
+  callout('tip','','Das ist der Startpunkt für deine Aufgaben-Landkarte in diesem Modul.');}},
+ {t:'Fragen an die KI',m:6,r:function(){var role=(S.profile.role||'').trim()||'Mitarbeiter in der Materialsteuerung';
+  return '<h2>Frag die KI selbst</h2>'+
+  '<p>'+md('Drei Prompts, jeweils im selben Chat. Lies kritisch: Was davon hilft dir wirklich?')+'</p>'+
+  callout('','Kurz vorweg','Dein Alltag besteht aus vielen einzelnen Aufgaben, beruflich wie privat. KI kann Teilaufgaben wie Entwürfe, Zusammenfassungen und Sortieren übernehmen. Urteil, Verantwortung und Beziehungen bleiben bei dir.')+
+  '<h3>Prompt 1: Wo kann KI helfen?</h3>'+copyBlock('Prompt','Ich arbeite als '+role+'. Welche meiner typischen Aufgaben kann KI realistisch übernehmen oder beschleunigen, und welche eher nicht? Sei ehrlich und konkret.')+
+  '<p><strong>Wie wirkt die Antwort auf dich?</strong></p>'+choice('m3.p1',[['bestaetigt','Habe ich so erwartet'],['ueberrascht','Überrascht mich'],['neu','Neue Ideen dabei']])+
+  '<h3>Prompt 2: Das Neue</h3>'+copyBlock('Prompt','Nenne mir drei Dinge, die ich als '+role+' mit KI machen könnte, für die ich bisher nie Zeit oder Know-how hatte. Mach die Vorschläge so konkret, dass ich heute damit anfangen kann.')+
+  '<p><strong>Welcher Vorschlag reizt dich am meisten?</strong></p>'+ta('m3.p2','Kurz notieren …',2)+
+  '<h3>Prompt 3: Die Grenzen</h3>'+copyBlock('Prompt','Wo sollte ich KI bei meiner Arbeit als '+role+' und privat lieber nicht oder nur mit Gegenprüfung einsetzen? Nenne drei Beispiele mit Begründung.')+
+  '<h3>Prompt 4: Und privat?</h3>'+copyBlock('Prompt','Meine Hobbys: '+gv('profile.hobby','Fitness, Haare schneiden für Freunde, Fußball')+'. Nenne mir fünf Dinge, bei denen mir KI privat helfen kann, zum Beispiel beim Planen, Rechnen oder Lernen. Mach sie so konkret, dass ich heute damit starten kann.')+
+  '<p><strong>Welche Idee probierst du als Erstes?</strong></p>'+ta('m3.p4','Kurz notieren …',2)+
+  callout('tip','Dirigent statt Ausführender','Du gibst den Auftrag, die KI liefert einen Entwurf, du prüfst und entscheidest. Falls du mal „KI nimmt mir den Job“ gehört hast: KI übernimmt Aufgaben, aber keine Verantwortung.');}},
+ {t:'Mission',m:7,r:function(){return '<h2>Mission: Deine Aufgaben-Landkarte</h2>'+
+  '<p>'+md('Trage deine wiederkehrenden Aufgaben ein (aus Modul 1 und dem Zeitfresser-Check vorausgefüllt) und ordne jede ein. Füge ruhig 1 bis 2 Dinge hinzu, die du **gern tun würdest, aber nie Zeit dafür hast**, und wähle „Neu“.')+'</p>'+taskmap()+
+  '<h3>Zweite Meinung von ChatGPT</h3><p>Lass ChatGPT deine Liste einordnen. Der Prompt baut sich aus deinen Eingaben auf.</p>'+copyBlock('Prompt, passend zu deiner Liste',taskPrompt(),'taskprompt')+
+  fld('Wo liegt ChatGPT anders als du? Wer hat recht?',ta('m3.diff','Z. B. „Ich dachte, die Terminplanung bleibt bei mir, ChatGPT sieht das auch so …“',3))+
+  callout('tip','','Die Rückfragen am Ende des Prompts sind Absicht. Beantworte sie. So lernst du, dass ein Dialog bessere Ergebnisse bringt als ein Einzelschuss. Dazu mehr in Modul 5.');}},
+ {t:'Abschluss',m:4,r:function(){return '<h2>Abschluss</h2>'+
+  quiz('m3a','Was gibst du am besten zuerst an die KI ab?',['Die Entscheidung, welchem Lieferanten man langfristig vertraut','Den ersten Entwurf einer Standardmail','Das Gespräch mit einem unzufriedenen Kunden','Die Freigabe einer Rechnung'],1,'Entwürfe sind ideal für den Einstieg. Entscheidungen, Gespräche und Freigaben bleiben bei dir.',3)+
+  quiz('m3b','Warum ist ein KI-Entwurf noch nicht das Endergebnis?',['Weil ChatGPT keine Mails schreiben kann','Weil du Kontext und Ton ergänzt, prüfst und die Verantwortung trägst','Weil Entwürfe immer zu lang sind','Weil man sie erst übersetzen muss'],1,'Die KI liefert Tempo, du lieferst Urteil. Erst mit deiner Prüfung wird der Entwurf brauchbar.',1)+
+  quiz('m3c','Was gehört in die Kategorie „Neu: dafür hatte ich nie Zeit“?',['Ein durchdachter 8-Wochen-Trainingsplan, der bisher immer liegen blieb','Die tägliche Mail-Routine','Ein Gespräch mit dem Chef','Das Passwort ändern'],0,'Genau dort zeigt sich der größte Gewinn: Dinge, die vorher gar nicht stattfanden.',0)+
+  '<h3>Dein Vorsatz</h3>'+fld('Diese eine Aufgabe gebe ich ab sofort zuerst an ChatGPT',ta('m3.commit','',2))+
+  '<h3>Alltagsmission (freiwillig)</h3><button class="opt'+(S.hw.m3?' on':'')+'" data-act="hw" data-id="m3">'+(S.hw.m3?'Erledigt':'Als erledigt markieren')+'</button><p style="margin-top:8px;color:var(--muted)">Setze deinen Vorsatz innerhalb von 24 Stunden bei einer echten Aufgabe um und notiere, wie lange es gedauert hat.</p>';},need:['m3a','m3b','m3c']}
+ ]},
+{id:'m4',stage:'B',n:4,title:'Prompting: die 5 Bausteine',sub:'Aus vagen Fragen werden Aufträge, die funktionieren',badge:['4','Prompt-Handwerker','Du formulierst Aufträge, die ChatGPT versteht. Das ist die Grundlage für alles, was jetzt kommt.'],steps:[
+ {t:'Schwacher Start',m:3,r:function(){return '<h2>Erst der schwache Prompt</h2><p>Du gibst ChatGPT absichtlich einen miserablen Auftrag. Das ist dein Vergleichswert.</p>'+
+  exp('m4.weak','Der Test','<p>Neuer Chat, dann:</p>'+copyBlock('Prompt (Job)','Schreib eine Mail wegen dem Termin.')+'<p>Und die private Variante:</p>'+copyBlock('Prompt (privat)','Mach mir einen Trainingsplan.'),[['allg','Viel zu allgemein'],['rate','ChatGPT hat einfach geraten'],['frage','ChatGPT hat nachgefragt']],'ChatGPT kennt weder Empfänger noch Anlass noch Ton. Es füllt die Lücken mit Durchschnitt. Je mehr Lücken du schließt, desto besser das Ergebnis.');}},
+ {t:'Die 5 Bausteine',m:7,r:function(){return '<h2>Bau dir deinen Prompt</h2><p>Ein guter Prompt hat fünf Bausteine. Fülle die Felder aus. Der Prompt unten baut sich live zusammen. Die Platzhalter zeigen ein privates Beispiel, du kannst genauso gut eine Aufgabe aus dem Job nehmen, zum Beispiel eine Mail an einen Lieferanten.</p>'+
+  '<div class="grid3"><div><b>1 Rolle</b>Wer soll die KI sein?</div><div><b>2 Aufgabe</b>Was genau soll passieren? Nimm ein klares Verb.</div><div><b>3 Kontext</b>Was muss sie wissen? Empfänger, Anlass, Fakten.</div><div><b>4 Format</b>Länge, Ton, Tabelle oder Liste?</div><div><b>5 Grenzen</b>Was nicht? Nachfragen erlaubt?</div></div>'+
+  fld('1 Rolle',inp('m4.f.rolle','z. B. erfahrener Personal Trainer'))+fld('2 Aufgabe',inp('m4.f.aufgabe','z. B. Erstelle einen 4-Wochen-Trainingsplan'))+
+  fld('3 Kontext',ta('m4.f.kontext','z. B. Ich trainiere dreimal pro Woche zuhause mit Kurzhanteln und Klimmzugstange, Ziel Muskelaufbau, der Beintag kommt oft zu kurz.',2))+
+  fld('4 Format',inp('m4.f.format','z. B. Tabelle mit Wochentag, Übung, Sätzen und Wiederholungen'))+fld('5 Grenzen',inp('m4.f.grenzen','z. B. Nur Übungen mit meinem Equipment, maximal 45 Minuten pro Einheit.'))+
+  copyBlock('Dein Prompt, live zusammengebaut',p5(),'live-p5')+
+  exp('m4.better','Jetzt ausprobieren','<p>Kopiere deinen Prompt in einen neuen Chat und vergleiche mit dem schwachen Prompt.</p>',[['viel','Deutlich besser'],['bisschen','Etwas besser'],['gleich','Kein Unterschied']],'Gut so. Aus „irgendeine Mail“ wurde ein Auftrag mit Rolle, Ziel und Format. Du musst nicht immer alle fünf Bausteine nutzen, aber bei wichtigen Aufgaben lohnt jeder davon.');}},
+ {t:'Training',m:7,r:function(){return '<h2>Drei Handgriffe, die viel bewirken</h2>'+
+  exp('m4.t1','Handgriff 1: Format vorgeben','<p>Du bekommst aus denselben Notizen sofort eine Tabelle:</p>'+copyBlock('Prompt','Hier sind meine Notizen:\n'+NOTES+'\n\nMache daraus eine Tabelle mit den Spalten Thema, Stand und nächster Schritt.'),[['top','Sofort brauchbar'],['nach','Musste nachbessern']],'Wer das Format vorgibt, spart sich das Umbauen. Probiere auch „als Checkliste“, „als E-Mail“ oder „in 3 Stichpunkten“.')+
+  exp('m4.t2','Handgriff 2: Den Ton wählen','<p>Im selben Chat:</p>'+copyBlock('Prompt','Schreibe die Mail an Hr. Köhler dreimal: sehr förmlich, freundlich-locker und ganz kurz in maximal drei Sätzen.'),[['f','Förmlich passt'],['l','Locker passt'],['k','Kurz passt']],'Mit Tonangaben steuerst du Wirkung. Merke dir deine Lieblingsvariante, sie kommt in deine Prompt-Bibliothek in Modul 10.')+
+  exp('m4.t3','Handgriff 3: Ein Beispiel mitgeben','<p>Füge unten eine echte Nachricht von dir als Stilvorlage ein, zum Beispiel aus dem Freundeskreis (nur der Stil zählt):</p>'+copyBlock('Prompt','Hier ist ein Beispiel dafür, wie ich schreibe:\n[Beispielnachricht hier einfügen]\n\nSchreibe in diesem Stil eine Nachricht an meine Freunde: Ich schneide am Samstag wieder Haare, wer will, meldet sich bis Donnerstag, es gibt jetzt feste Zeitfenster.'),[['klingt','Klingt nach mir'],['teils','Teilweise'],['nein','Eher nicht']],'Ein Beispiel ist der stärkste Baustein. ChatGPT übernimmt Satzlänge, Anrede und Tonfall. Profis nennen das Few-Shot-Prompting, du nennst es einfach „zeig’s ihr“.');}},
+ {t:'Abschluss',m:3,r:function(){return '<h2>Abschluss</h2>'+
+  quiz('m4a','Was bringt bei einem schwachen Prompt meist den größten Sprung?',['Mehr Ausrufezeichen','Kontext und Format konkret angeben','Den Prompt zweimal senden','Das Wort „bitte“ weglassen'],1,'Kontext und Format schließen die Lücken, die sonst mit Durchschnitt gefüllt werden.',2)+
+  quiz('m4b','Wozu dient ein Beispiel im Prompt?',['ChatGPT übernimmt Stil und Struktur','Die Antwort wird länger','Es spart Rechenleistung','Es ersetzt die Aufgabe'],0,'Ein Beispiel zeigt Stil, Länge und Aufbau besser als jede Beschreibung.',0)+
+  quiz('m4c','Welcher Prompt ist am besten?',['Mach was mit Training.','Plan für Muskeln, kurz.','Du bist Personal Trainer. Erstelle einen Vierwochenplan mit drei Einheiten pro Woche, nur Kurzhanteln, als Tabelle. Frage nach, was fehlt.','Trainiere mich jetzt!'],2,'Rolle, Aufgabe, Kontext und Format sind enthalten.',3)+
+  refl('refl.m4','Welcher Baustein bringt bei dir am meisten?')+hwb('m4','Formuliere heute einen echten Auftrag, beruflich oder privat, mit mindestens drei Bausteinen.');},need:['m4a','m4b','m4c']}
+ ]},
+{id:'m5',stage:'B',n:5,title:'Dialog statt Einzelschuss',sub:'Nachfragen, nachbessern und den Chat steuern',badge:['5','Dialog-Profi','Du führst Gespräche mit der KI statt Einzelanfragen. Genau so entstehen die guten Ergebnisse.'],steps:[
+ {t:'Rückfragen lassen',m:5,r:function(){return '<h2>Lass dich interviewen</h2><p>Der stärkste Trick: ChatGPT fragt zuerst, schreibt dann.</p>'+
+  exp('m5.ask','Mission','<p>Neuer Chat:</p>'+copyBlock('Prompt','Ich möchte einen Trainingsplan für die nächsten vier Wochen. Stelle mir erst bis zu fünf Rückfragen, bevor du etwas schreibst. Warte auf meine Antworten.')+'<p>Beantworte die Fragen kurz (Ziel, Tage, Geräte, Dauer, Lieblingsübungen) und lass dir dann den Plan schreiben. Für eine Job-Variante tauscht du das Thema gegen „eine Ankündigung an mein Team“.</p>',[['besser','Ergebnis passt besser als bei Einzelschuss'],['gleich','Kein großer Unterschied'],['mühsam','Eher mühsam']],'Die Rückfragen holen genau den Kontext, den du sonst vergessen hättest. Für wichtige Texte ist das der schnellste Weg zu einem guten ersten Entwurf.');}},
+ {t:'Nachbessern',m:6,r:function(){return '<h2>Die Werkzeugkiste zum Nachbessern</h2><p>Das erste Ergebnis ist selten das beste. Wende drei dieser Sätze auf deinen Trainingsplan an, einen nach dem anderen im selben Chat.</p>'+
+  copyBlock('Zum Nachbessern','Kürzer: maximal 45 Minuten pro Einheit.\n\nTausche alle Übungen, für die ich ein Gerät brauche, das ich nicht habe.\n\nGib mir drei Varianten für den Beintag.\n\nWas fehlt in dem Plan noch? Nenne drei Punkte.\n\nErkläre jede Übung in einem Satz, so dass es ein Anfänger versteht.')+
+  exp('m5.fix','Test','<p>Welche Anweisung hat die Antwort am stärksten verbessert?</p>',[['kuerzer','Kürzer'],['direkt','Übungen tauschen'],['varianten','Varianten'],['fehlt','Was fehlt?']],'Du musst nicht neu anfangen. Nachbessern geht schneller als Neuformulieren und ist oft besser. Tipp: Mit dem Stift-Symbol an deiner Nachricht änderst du deinen Prompt nachträglich.');}},
+ {t:'Chats steuern',m:6,r:function(){return '<h2>Ordnung im Chat</h2>'+
+  '<p>'+md('**Ein Thema, ein Chat.** Lange Chats werden unscharf, weil Altes aus dem Kontext rutscht. Du nimmst trotzdem Wichtiges mit:')+'</p>'+
+  exp('m5.sum','Mission: Übergabe in neuen Chat','<p>Im Chat mit dem Trainingsplan:</p>'+copyBlock('Prompt 1','Fasse unseren Stand in einem kurzen Briefing zusammen: Ziel, Plan, Regeln, offene Punkte. Ich kopiere das in einen neuen Chat.')+'<p>Kopiere die Antwort in einen <strong>neuen Chat</strong> und schreibe dazu:</p>'+copyBlock('Prompt 2','Das ist der Stand aus einem früheren Chat. Mach damit weiter: Erstelle passend dazu einen Ernährungsplan für die Trainingstage mit Einkaufsliste.'),[['ja','Neuer Chat hat verstanden'],['teils','Teilweise'],['nein','Hat Wichtiges verloren']],'So nimmst du den Kontext mit, ohne den alten Chat zu überladen. Später lernst du, wie ein Project und das Gedächtnis das automatisch erledigen.')+
+  exp('m5.think','Think im Dialog','<p>Wenn ein Ergebnis logisch hakt, schalte Think ein und schreibe:</p>'+copyBlock('Prompt','Prüfe deine letzte Antwort Schritt für Schritt auf Widersprüche, zum Beispiel zu wenig Erholung zwischen den Beintagen, und korrigiere sie.'),[['ok','Hat etwas gefunden'],['nix','Nichts gefunden'],['na','Think nicht verfügbar']],'Think ist ein guter Prüfer für eigene Antworten. In der kostenlosen Version begrenzt, also gezielt einsetzen.');}},
+ {t:'Abschluss',m:3,r:function(){return '<h2>Abschluss</h2>'+
+  quiz('m5a','Was ist der größte Vorteil von Rückfragen vor dem Schreiben?',['Der Text wird länger','ChatGPT bekommt den fehlenden Kontext','Es spart Zeit beim Tippen','Es verhindert Zufall'],1,'Fehlender Kontext ist die häufigste Ursache für schwache Ergebnisse.',3)+
+  quiz('m5b','Wann startest du besser einen neuen Chat?',['Bei jedem Satz','Bei einem neuen Thema oder wenn der Chat unscharf wird','Nie','Nur am Montag'],1,'Ein Thema pro Chat hält den Kontext sauber.',1)+
+  quiz('m5c','Wie bessert man ein Ergebnis am schnellsten nach?',['Alles löschen','Im selben Chat eine gezielte Anweisung geben','Den Chat wechseln','Die Frage identisch wiederholen'],1,'Gezielte Anweisungen wie „kürzer“ oder „direkter“ bringen oft den schnellsten Sprung.',0)+
+  refl('refl.m5','Welche Nachbesser-Anweisung nutzt du künftig am häufigsten?')+hwb('m5','Lass dich bei der nächsten echten Planung (Training, Urlaub, wichtige Mail) zuerst von ChatGPT interviewen.');},need:['m5a','m5b','m5c']}
+ ]},
+{id:'m6',stage:'B',n:6,title:'Recherche und Faktencheck',sub:'Websuche nutzen, Quellen prüfen, Deep Research testen',badge:['6','Quellenprüfer','Du recherchierst mit KI und prüfst, bevor du vertraust. Das unterscheidet Profis von Laien.'],steps:[
+ {t:'Websuche',m:6,r:function(){return '<h2>ChatGPT mit Internet</h2><p>'+md('Für Aktuelles braucht ChatGPT die **Websuche**. Wähle ein Thema aus Job oder Freizeit, bei dem sich zuletzt etwas getan hat.')+'</p>'+
+  fld('Dein Thema',inp('m6.topic','z. B. der aktuelle Stand beim FC Bayern oder neue Regeln für E-Rechnungen'))+
+  copyBlock('Prompt',p6a(),'live-p6a')+
+  exp('m6.src','Mission','<p>Aktiviere in ChatGPT die Websuche, falls sie nicht automatisch läuft. Öffne danach <strong>zwei der genannten Quellen</strong> und vergleiche.</p>',[['ok','Quellen bestätigen die Aussagen'],['teil','Teils, einiges fehlt'],['nein','Quelle sagt etwas anderes']],'Das ist die wichtigste Gewohnheit: Links öffnen, Stichprobe prüfen. Die KI fasst gut zusammen, aber sie kann Quellen falsch wiedergeben.');}},
+ {t:'Gegenprobe',m:5,r:function(){return '<h2>Lass die KI sich selbst prüfen</h2>'+
+  exp('m6.check','Mission','<p>Im selben Chat:</p>'+copyBlock('Prompt','Prüfe deine letzte Antwort kritisch: Welche Aussagen sind am unsichersten? Welche sollte ich selbst verifizieren? Nenne für jede Aussage die Quelle oder sag, dass du keine hast.'),[['viel','Hat Schwächen offengelegt'],['wenig','Kaum Neues'],['abwehr','Hat alles verteidigt']],'Dieser Prompt verwandelt die KI vom Redner in einen Prüfer. Kombiniert mit deiner Stichprobe ist das eine solide Faktencheck-Routine.')+
+  callout('tip','Die 3-Quellen-Regel','Wichtige Zahl oder Behauptung? Mindestens zwei unabhängige Quellen öffnen. Stimmen beide überein, kannst du es nutzen.');}},
+ {t:'Deep Research',m:6,r:function(){return '<h2>Der Rechercheur für Gründliche</h2><p>'+md('**Deep Research** arbeitet mehrere Minuten, liest viele Quellen und liefert einen Bericht. In der kostenlosen Version ist die Zahl der Durchläufe stark begrenzt. Setze ihn einmal gezielt ein.')+'</p>'+
+  '<p>Wähle eine der beiden Varianten:</p>'+copyBlock('Prompt (privat)','Recherchiere den aktuellen Stand der Forschung: Wie oft pro Woche sollte man für Muskelaufbau trainieren, drei, vier oder fünf Mal? Gliedere den Bericht in: 1. Studienlage, 2. Empfehlungen für Hobbysportler, 3. typische Fehler. Nutze möglichst seriöse Quellen und nenne sie am Ende.')+copyBlock('Prompt (Job)','Recherchiere, wie Unternehmen in Deutschland KI in der Materialwirtschaft und im Einkauf einsetzen. Gliedere den Bericht in: 1. verbreitete Anwendungen, 2. typische Stolpersteine, 3. Tipps für Einsteiger. Nutze möglichst seriöse Quellen und nenne sie am Ende.')+
+  exp('m6.dr','Mission','<p>Wähle im Plus-Menü „Deep Research“ (falls sichtbar) und sende den Prompt. Das dauert einige Minuten. Starte währenddessen den nächsten Schritt in einem anderen Tab nicht, sondern lies dir die Rückfrage von ChatGPT durch.</p>',[['top','Sehr gründlicher Bericht'],['ok','Brauchbar, aber lang'],['limit','Limit erreicht oder nicht verfügbar']],'Deep Research lohnt sich für Fragen, bei denen du sonst eine Stunde googeln würdest. Für Einfaches ist die normale Websuche schneller. Falls bei dir das Limit erreicht ist: kein Problem, die Funktion kommt im Bonus-Bereich in voller Tiefe.');}},
+ {t:'Abschluss',m:3,r:function(){return '<h2>Abschluss</h2>'+
+  quiz('m6a','Was ist die wichtigste Gewohnheit bei KI-Recherche?',['Der ersten Antwort vertrauen','Quellen öffnen und eine Stichprobe prüfen','Immer Deep Research nutzen','Den Chat löschen'],1,'Stichproben decken Fehler schnell auf.',0)+
+  quiz('m6b','Wofür lohnt sich Deep Research?',['Für eine kurze Frage nach dem Wetter','Für Themen, bei denen du sonst lange selbst recherchieren würdest','Für Rechtschreibung','Für Smalltalk'],1,'Tiefe Recherche kostet Zeit und Kontingent, also gezielt einsetzen.',2)+
+  quiz('m6c','Was tust du, wenn eine Quelle etwas anderes sagt als ChatGPT?',['Ich glaube ChatGPT','Ich halte mich an die Quelle und frage ChatGPT nach der Abweichung','Ich frage dieselbe Frage nochmal','Ich ignoriere beide'],1,'Die Quelle ist maßgeblich. Frage zurück, warum die Abweichung entstand.',3)+
+  refl('refl.m6','Bei welchem Thema recherchierst du künftig mit ChatGPT statt mit Google?')+hwb('m6','Recherchiere diese Woche eine echte Frage mit Websuche und prüfe zwei Quellen.');},need:['m6a','m6b','m6c']}
+ ]},
+{id:'m7',stage:'B',n:7,title:'Dateien, Excel und Daten',sub:'Tabellen analysieren, Formeln erklären lassen, Diagramme bauen',badge:['7','Daten-Versteher','Du lässt Tabellen auswerten und Formeln erklären. Das spart im Job und bei privaten Rechnungen die meiste Zeit.'],steps:[
+ {t:'Daten auswerten',m:7,r:function(){return '<h2>Analysiere eine Tabelle</h2><p>Hier sind erfundene Einnahmen aus Haarschnitten unter Freunden. Kopiere sie direkt in den Chat (ganz ohne Upload, das schont dein Tageslimit).</p>'+
+  copyBlock('Daten zum Kopieren',HAIR)+
+  exp('m7.an','Mission','<p>Neuer Chat:</p>'+copyBlock('Prompt','Hier sind meine Haarschnitt-Einnahmen (Semikolon getrennt):\n[Daten einfügen]\n\nBerechne pro Monat Einnahmen, Materialkosten und Gewinn. Erstelle ein Diagramm zur Entwicklung des Gewinns. Wie viele Schnitte brauche ich bei 7 € Preis, um 100 € Gewinn im Monat zu erreichen? Nenne drei Empfehlungen.'),[['sued','Gewinn steigt (erkannt)'],['anders','Etwas anderes erkannt'],['kein','Kein Diagramm erhalten']],'Zum Gegenprüfen: Der Gewinn liegt bei 28, 36, 57, 41, 85 und 104 Euro pro Monat (Januar bis Juni). Mehr Schnitte und ein höherer Preis lassen ihn wachsen, das Material kostet kaum mehr. Stimmen die Zahlen bei dir? Wenn ChatGPT ein Diagramm zeigt, bist du in der neuen Oberfläche. Sonst bitte: „Zeige mir das als Diagramm.“');}},
+ {t:'Formeln',m:6,r:function(){return '<h2>Dein Excel-Coach</h2>'+
+  exp('m7.f1','Formel erklären lassen','<p>Neuer Chat:</p>'+copyBlock('Prompt','Erkläre mir diese Excel-Formel Schritt für Schritt in einfacher Sprache:\n=WENNFEHLER(INDEX(B:B;VERGLEICH(E2;A:A;0));"nicht gefunden")'),[['klar','Jetzt verständlich'],['halb','Teilweise'],['nein','Immer noch unklar']],'Das ist ein klassischer SVERWEIS-Ersatz. Wenn du Formeln nicht verstehst, lass sie dir erklären, bevor du sie einsetzt.')+
+  exp('m7.f2','Formel bauen lassen','<p>Im selben Chat:</p>'+copyBlock('Prompt','Ich habe in Spalte A den Monat, in Spalte B die Anzahl Haarschnitte, in Spalte C den Preis pro Schnitt und in Spalte D die Materialkosten. Schreibe mir eine Formel für den Gewinn pro Monat in Spalte E. Erkläre sie kurz und zeige, wie ich sie in Zelle E2 eintrage.'),[['klappt','Formel funktioniert'],['fehler','Fehler in Excel'],['nicht','Noch nicht getestet']],'Teste die Formel immer mit zwei, drei bekannten Werten. Falls Excel einen Fehler zeigt, kopiere die Fehlermeldung in den Chat. Das ist der schnellste Weg zur Lösung.');}},
+ {t:'Eigene Datei',m:5,r:function(){return '<h2>Mit deiner eigenen Datei</h2><p>'+md('Jetzt ein Upload. In der kostenlosen Version gibt es nur wenige pro Tag, also **ein bis zwei gezielte Versuche**. Nimm eine harmlose Datei, zum Beispiel dein Trainingstagebuch als Tabelle oder eine anonymisierte Excel-Liste aus dem Job.')+'</p>'+
+  exp('m7.up','Mission','<p>Lade über das Plus-Symbol eine Tabelle oder ein PDF hoch und frage:</p>'+callout('tip','Ideen privat','Trainingstagebuch (Gewichte, Sätze, Wiederholungen) oder deine Haarschnitt-Abrechnung. Frag: Bei welchen Übungen stagniere ich? Wie hat sich mein Gewinn pro Monat entwickelt?')+callout('tip','Ideen aus der Materialsteuerung','Bestandsliste, Lieferplan oder Bedarfsübersicht als Excel oder PDF. Frag nach Auffälligkeiten: Welche Positionen haben einen Bestand unter Mindestbestand? Wo weichen Liefertermin und Bedarfstermin ab? **Nutze nur Daten, die du intern ohnehin weitergeben darfst, oder anonymisiere Teilenummern und Lieferantennamen.**')+copyBlock('Prompt','Beschreibe kurz, was in dieser Datei steht. Welche Spalten oder Abschnitte gibt es? Schlage drei sinnvolle Auswertungen vor.'),[['ok','Hat geklappt'],['limit','Limit erreicht'],['keine','Keine passende Datei zur Hand']],'Dateien sind die Brücke zwischen deinem Alltag und der KI. Ohne passende Datei reicht es, wenn du den Ablauf kennst. Alternativ kannst du Inhalte als Text einfügen.');}},
+ {t:'Abschluss',m:3,r:function(){return '<h2>Abschluss</h2>'+
+  quiz('m7a','Wie umgehst du ein knappes Upload-Limit am besten?',['Gar nichts hochladen','Daten als Text in den Chat einfügen','Den Chat löschen','Einen zweiten Rechner nutzen'],1,'Kleine Tabellen kannst du als Text einfügen, das braucht keinen Upload.',2)+
+  quiz('m7b','Was machst du mit einer von ChatGPT gebauten Formel?',['Sofort blind einsetzen','Mit bekannten Werten testen','Ignorieren','Löschen'],1,'Immer mit Stichproben testen, bevor du dich darauf verlässt.',0)+
+  quiz('m7c','Wie reagierst du auf eine Excel-Fehlermeldung?',['Ich gebe auf','Ich kopiere die Fehlermeldung in den Chat','Ich lösche die Datei','Ich starte Excel neu'],1,'Fehlermeldung plus Formel im Chat führen meist direkt zur Lösung.',3)+
+  refl('refl.m7','Welche Tabelle oder Formel aus deinem Alltag gibst du als Erstes weiter?')+hwb('m7','Lass dir eine echte Formel aus deiner Arbeit erklären oder bauen.');},need:['m7a','m7b','m7c']}
+ ]},
+{id:'m8',stage:'B',n:8,title:'Schreiben im Job und privat',sub:'Protokolle, Mails, Nachrichten, Übersetzungen, ChatGPT für Word',badge:['8','Schreib-Beschleuniger','Du erledigst Schreibarbeit in einem Bruchteil der Zeit und behältst die Kontrolle über das Ergebnis.'],steps:[
+ {t:'Protokoll',m:6,r:function(){return '<h2>Vom Rohprotokoll zum Ergebnisprotokoll</h2><p>Typische Büroaufgabe, erfundener Inhalt. Das Prinzip gilt genauso für Vereins- oder Freundestreffen:</p>'+
+  copyBlock('Rohprotokoll',PROTO)+
+  exp('m8.pr','Mission','<p>Neuer Chat, mit den fünf Bausteinen aus Modul 4:</p>'+copyBlock('Prompt','Du bist Assistenz im Projektbüro. Mache aus diesem Rohprotokoll ein Ergebnisprotokoll mit den Abschnitten Entscheidungen, Aufgaben (mit Verantwortlichen und Terminen) und Offene Punkte. Erfinde nichts, markiere Unklares mit „zu klären“.\n\n[Rohprotokoll einfügen]'),[['top','Sofort brauchbar'],['nach','Brauchte Nachbesserung'],['fehl','Hat etwas erfunden']],'Der Zusatz „Erfinde nichts, markiere Unklares“ zahlt sich aus. Prüfe trotzdem immer Namen, Termine und Zahlen gegen das Original.');}},
+ {t:'Mails und Tonfall',m:6,r:function(){return '<h2>Mails, die sitzen</h2>'+
+  exp('m8.m1','Schwierige Mail','<p>Eine Absage freundlich formulieren:</p>'+copyBlock('Prompt','Du bist Vertriebsassistenz. Schreibe eine freundliche, klare Absage an Firma Brandt: Wir können den gewünschten Preis nicht anbieten, aber 5 % bei Abnahme ab 10 Stück. Maximal 90 Wörter. Mit Betreffzeile.'),[['gut','Ton stimmt'],['kalt','Zu kühl'],['weich','Zu weich']],'Absagen, Erinnerungen und Beschwerden sind die besten Einsatzfelder. Du lieferst die Haltung, die KI die Formulierung.')+
+  exp('m8.m3','Private Nachricht','<p>Dieselbe Technik im Freundeskreis. Schreibe in einem neuen Chat:</p>'+copyBlock('Prompt','Schreibe eine freundliche, klare WhatsApp-Nachricht an meinen Freund Tim: Ich muss den Haarschnitt-Termin am Samstag absagen und schlage Sonntag 11 Uhr vor. Außerdem nehme ich ab jetzt 7 € pro Schnitt, weil das Material teurer geworden ist. Locker, ohne Floskeln, maximal 60 Wörter.'),[['gut','Ton stimmt'],['kalt','Zu förmlich'],['weich','Zu weich']],'Bei Geld unter Freunden ist der Ton entscheidend. Du kannst nachbessern: „Noch lockerer“ oder „mit einem Augenzwinkern“.')+
+  exp('m8.m2','Übersetzen und Glätten','<p>Im selben Chat:</p>'+copyBlock('Prompt','Übersetze die Mail ins Englische, geschäftlich und natürlich, keine wörtliche Übersetzung. Danach: Gib mir zwei Hinweise, was im englischen Geschäftsalltag anders klingt.'),[['top','Klingt natürlich'],['hm','Etwas steif'],['na','Brauche ich nicht']],'Das ersetzt keine Fachübersetzung bei Verträgen, ist aber im Alltag ein riesiger Zeitgewinn.');}},
+ {t:'Word und Copilot',m:6,r:function(){return '<h2>ChatGPT direkt in Word</h2><p>'+md('Es gibt **ChatGPT für Word** als Seitenleiste, auch kostenlos. Es sieht nur das geöffnete Dokument und kann entwerfen, zusammenfassen und überarbeiten.')+'</p>'+
+  '<ol><li>Öffne Word (Desktop oder im Browser) und suche unter „Add-ins“ nach „ChatGPT“ (Herausgeber OpenAI).</li><li>Installiere es und melde dich mit deinem ChatGPT-Konto an.</li><li>Markiere einen Absatz und bitte um eine Überarbeitung.</li></ol>'+
+  callout('','Im Firmen-Word','Manche Firmen erlauben Add-ins nicht. Das ist normal und liegt an den Einstellungen deiner IT. Dann probierst du es privat oder im Browser mit einem privaten Dokument.')+
+  exp('m8.w','Mission','<p>Setze in Word einen Absatz auf „kürzer und direkter“ und vergleiche.</p>',[['ok','Hat geklappt'],['blk','Add-in nicht erlaubt'],['skip','Überspringe ich']],'Gut. Dieselben Prompts funktionieren übrigens auch bei Microsoft Copilot, falls du es im Büro hast. Der Unterschied ist, dass Copilot je nach Lizenz auf deine Firmendateien zugreifen darf. Probiere deine Bausteine dort einfach aus.');}},
+ {t:'Abschluss',m:3,r:function(){return '<h2>Abschluss</h2>'+
+  quiz('m8a','Was gehört in jeden Prompt für ein Protokoll?',['Ein Witz','Die Anweisung, nichts zu erfinden und Unklares zu markieren','Eine möglichst lange Anrede','Ein Emoji'],1,'Das reduziert Erfindungen und zeigt dir, wo du nachfragen musst.',1)+
+  quiz('m8b','Was prüfst du bei KI-Protokollen immer selbst?',['Schriftart','Namen, Termine und Zahlen','Zeilenabstand','Dateiname'],1,'Fakten stehen im Original, nicht in der KI.',3)+
+  quiz('m8c','Warum kann ChatGPT für Word im Firmen-Word fehlen?',['Es ist kaputt','Die IT-Einstellungen erlauben es nicht','Man braucht ein Abo','Word ist zu alt'],1,'Add-ins brauchen die Freigabe der IT. Das ist normal.',0)+
+  refl('refl.m8','Welche Schreibaufgabe, beruflich oder privat, gibst du ab sofort zuerst an ChatGPT?')+hwb('m8','Erstelle ein echtes Protokoll, eine Mail oder eine Nachricht an Freunde mit den fünf Bausteinen.');},need:['m8a','m8b','m8c']}
+ ]},
+{id:'m9',stage:'B',n:9,title:'Bilder, Handy und Sprache',sub:'Bilder erstellen, Fotos analysieren, mit ChatGPT sprechen',badge:['9','Multimedia-Profi','Du nutzt ChatGPT mit Augen, Ohren und Mund. Das macht die KI im Alltag erst richtig praktisch.'],steps:[
+ {t:'Bilder erstellen',m:6,r:function(){return '<h2>Ein Bild nach Maß</h2>'+callout('tip','Tagesbudget','Bilder sind im kostenlosen Konto stark begrenzt. Plane höchstens zwei Bilder.')+
+  fld('Dein Thema',inp('m9.topic','z. B. Motivationsposter fürs Training oder Titelbild für meine Quartalspräsentation'))+
+  copyBlock('Prompt',p9(),'live-p9')+
+  exp('m9.img','Mission','<p>Sende den Prompt in einem neuen Chat. Bitte danach um eine Änderung:</p>'+copyBlock('Zum Nachbessern','Mach den Hintergrund heller und füge mehr Weißraum für Text hinzu.'),[['top','Passt gut'],['fast','Fast richtig'],['limit','Limit erreicht']],'Bei Bildern gelten dieselben Bausteine: Motiv, Stil, Stimmung, Format. Je konkreter, desto besser. Und nachbessern geht auch hier im Dialog.');}},
+ {t:'Fotos analysieren',m:5,r:function(){return '<h2>ChatGPT mit Augen</h2><p>Nimm dein Handy und öffne die ChatGPT-App. Fotografiere etwas Nützliches: die Nährwerttabelle eines Proteinriegels, deinen handschriftlichen Trainingszettel, ein Whiteboard oder eine Speisekarte.</p>'+
+  exp('m9.ph','Mission','<p>Foto anhängen (Kamera- oder Plus-Symbol) und:</p>'+copyBlock('Prompt','Beschreibe, was du auf dem Foto siehst. Übertrage allen Text. Fasse danach die Kernaussagen in drei Stichpunkten zusammen. Bei Lebensmitteln: Wie gut passt das zu einem Muskelaufbau-Ziel?'),[['top','Erkennt alles'],['teils','Teilweise'],['kein','Kein Foto gemacht']],'Handschrift, Whiteboards und Etiketten sind ein starker Einsatz im Alltag. Nichts abtippen, einfach fotografieren.');}},
+ {t:'Sprache',m:5,r:function(){return '<h2>Reden statt tippen</h2><p>Tippe in der App auf das Wellen-Symbol und starte den Sprachmodus.</p>'+
+  exp('m9.vo','Mission','<p>Sprich ChatGPT drei Minuten lang an:</p>'+copyBlock('Sag das','Ich halte nächste Woche eine kurze Präsentation. Interviewe mich zu meinem Thema, stelle jeweils eine Frage und hilf mir danach, daraus drei klare Kernbotschaften zu machen.')+'<p>Oder privat:</p>'+copyBlock('Sag das (privat)','Ich will nächsten Monat mit einem neuen Trainingsplan starten. Interviewe mich zu Zielen, Zeit und Equipment, immer eine Frage, und fasse danach alles in einem Plan für die erste Woche zusammen.'),[['top','Sehr nützlich'],['okay','Geht so'],['limit','Limit oder nicht verfügbar']],'Der Sprachmodus eignet sich zum Ideen sortieren, Üben und für unterwegs. Das Diktat im Eingabefeld (Mikrofon) ist eine Alternative, wenn du nur Text willst.');}},
+ {t:'Abschluss',m:3,r:function(){return '<h2>Abschluss</h2>'+
+  quiz('m9a','Was gehört zu einem guten Bild-Prompt?',['Motiv, Stil, Stimmung, Format','Nur ein Wort','Ein Passwort','Eine Zahl'],0,'Dieselbe Logik wie bei Text: konkret statt vage.',3)+
+  quiz('m9b','Wofür eignet sich ein Foto-Upload besonders?',['Handschrift und Whiteboards übertragen','Rechtschreibung','Preise vergleichen','Passwörter speichern'],0,'Foto statt Abtippen spart die meiste Zeit.',2)+
+  quiz('m9c','Wie gehst du mit knappen Bildlimits um?',['Gar nicht benutzen','Gezielt und mit einem guten Prompt','Zehnmal denselben Prompt senden','Den Browser wechseln'],1,'Mit einem sauberen Prompt reichen ein bis zwei Versuche.',1)+
+  refl('refl.m9','Welche der drei Funktionen (Bild, Foto, Sprache) nutzt du künftig am meisten?')+hwb('m9','Fotografiere heute etwas (Zettel, Etikett, Whiteboard) und lass es von ChatGPT zusammenfassen.');},need:['m9a','m9b','m9c']}
+ ]},
+{id:'m10',stage:'C',n:10,title:'Dein persönlicher Assistent',sub:'Anweisungen, Gedächtnis, Project und Prompt-Bibliothek',badge:['10','Assistenten-Bauer','ChatGPT kennt jetzt deinen Stil und deine Aufgaben, ohne dass du jedes Mal bei null startest.'],steps:[
+ {t:'Eigene Anweisungen',m:6,r:function(){var missing=S.func.custom==='nein';return '<h2>ChatGPT lernt dich kennen</h2><p>'+md('Mit **eigenen Anweisungen** schreibt ChatGPT automatisch in deinem Stil. Lass dir den Text von ChatGPT selbst interviewen und formulieren.')+'</p>'+
+  copyBlock('Prompt','Du bist mein Prompt-Coach. Interviewe mich Schritt für Schritt (eine Frage nach der anderen, maximal sieben), um Anweisungen für meine KI-Nutzung im Job und privat zu schreiben: Beruf, Hobbys, Tonfall, typische Aufgaben, Dinge, die ich nicht mag. Fasse danach alles in 120 Wörtern als Anweisung zusammen, die ich in die Einstellungen kopieren kann.')+
+  exp('m10.ci','Mission','<p>Gehe zu Profilbild, Einstellungen, Personalisierung, Eigene Anweisungen. Füge den fertigen Text ein und speichere.</p>'+(missing?'<p>Du hattest im Funktions-Check angegeben, dass du das nicht siehst. Nutze stattdessen die Anweisungen in einem Project (nächster Schritt).</p>':''),[['ok','Gespeichert'],['nicht','Nicht gefunden'],['skip','Später']],'Ab jetzt kennt ChatGPT deinen Ton in jedem Chat. Testen: Bitte um eine kurze Mail an einen Kollegen und achte auf den Stil.');}},
+ {t:'Gedächtnis und Project',m:7,r:function(){return '<h2>Ein Ort für ein Thema</h2><p>'+md('Ein **Project** bündelt Chats, Anweisungen und bis zu fünf Dateien für ein wiederkehrendes Thema.')+'</p>'+
+  '<ol><li>Seitenleiste, „Neues Project“, Name: <strong>Mein Büro-Assistent</strong> (oder gleich ein zweites Project: <strong>Mein Fitness-Coach</strong>).</li><li>Anweisungen: Kopiere deine eigenen Anweisungen oder eine der beiden Vorlagen hinein:</li></ol>'+
+  copyBlock('Project-Anweisungen','Du bist mein Assistent für die tägliche Büroarbeit. Antworte knapp und klar auf Deutsch. Stelle Rückfragen, wenn Informationen fehlen. Erfinde keine Fakten. Gib Ergebnisse standardmäßig als Liste oder kurze Absätze aus.')+copyBlock('Project-Anweisungen: Fitness-Coach','Du bist mein Fitness-Coach. Ich trainiere mehrmals pro Woche und will Muskeln aufbauen. Antworte motivierend, aber ehrlich und kurz. Frage bei Plänen nach Zeit, Geräten und Erholung. Gib Pläne als Tabelle aus. Erfinde keine Studien.')+
+  exp('m10.pj','Mission','<p>Starte im Project einen Chat und bitte: „Fasse in drei Sätzen zusammen, wie du mir helfen sollst.“ Beim Fitness-Coach danach: „Plane meine nächste Woche.“</p>',[['ok','Project läuft'],['nicht','Project nicht gefunden'],['skip','Später']],'Das Gedächtnis (Einstellungen, Personalisierung, Gedächtnis) merkt sich zusätzlich Dinge aus Gesprächen. Schau dort ruhig nach, was gespeichert wurde, und lösche, was dir nicht gefällt.');}},
+ {t:'Prompt-Bibliothek',m:7,r:function(){return '<h2>Deine Prompt-Bibliothek</h2><p>Gute Prompts wiederverwendest du. Trage drei Favoriten ein. Ersetze variable Teile durch [Platzhalter in eckigen Klammern].</p>'+
+  fld('Prompt 1 (z. B. Mail aus Stichpunkten)',ta('lib.p1','Du bist … Schreibe eine Mail an [Empfänger] zum Thema [Thema] …',3))+
+  fld('Prompt 2 (z. B. Protokoll oder Trainingsplan anpassen)',ta('lib.p2','',3))+fld('Prompt 3 (z. B. Zusammenfassung oder Haarschnitt-Abrechnung)',ta('lib.p3','',3))+
+  '<h3>Meta-Prompt: Die KI verbessert deine Prompts</h3>'+copyBlock('Prompt','Du bist Prompt-Coach. Verbessere meinen Prompt mit den fünf Bausteinen Rolle, Aufgabe, Kontext, Format, Grenzen. Zeige die neue Version und erkläre in zwei Sätzen, was du geändert hast.\n\nMein Prompt:\n[Prompt 1 einfügen]')+
+  exp('m10.mp','Mission','<p>Wende den Meta-Prompt auf deinen Prompt 1 an.</p>',[['besser','Wurde besser'],['gleich','Kaum Unterschied']],'Das ist der Profi-Kniff: Lass die KI deine Prompts selbst verbessern. Speichere deine besten drei Versionen, sie begleiten dich durch das Abschlussprojekt.');}},
+ {t:'Abschluss',m:3,r:function(){return '<h2>Abschluss</h2>'+
+  quiz('m10a','Wofür sind eigene Anweisungen gut?',['Damit ChatGPT automatisch in deinem Stil schreibt','Um das Internet abzuschalten','Um Bilder zu löschen','Für Passwörter'],0,'Sie gelten in jedem Chat, bis du sie änderst.',1)+
+  quiz('m10b','Was bündelt ein Project?',['Chats, Anweisungen und Dateien zu einem Thema','Nur Bilder','Nur Sprachaufnahmen','Dein Abo'],0,'Ideal für wiederkehrende Aufgaben.',3)+
+  quiz('m10c','Warum nutzt du Platzhalter in Prompt-Vorlagen?',['Sie sehen schöner aus','Du ersetzt nur die variablen Teile','Sie sparen Strom','ChatGPT verlangt es'],1,'So machst du aus einem guten Prompt eine Vorlage, die du immer wieder nutzt.',0)+
+  refl('refl.m10','Welche drei Aufgaben, beruflich und privat, deckt dein Assistent künftig ab?')+hwb('m10','Nutze deinen Assistenten heute für eine echte Aufgabe und notiere, was besser lief.');},need:['m10a','m10b','m10c']}
+ ]},
+{id:'m11',stage:'C',n:11,title:'Denkpartner und Lernen',sub:'Üben, widersprechen lassen, Wissen aufbauen',badge:['11','Denkpartner','Du nutzt ChatGPT nicht nur zum Erledigen, sondern zum Besserwerden.'],steps:[
+ {t:'Rollenspiel',m:6,r:function(){return '<h2>Üben ohne Risiko</h2>'+
+  exp('m11.rp','Mission: Schwieriges Gespräch','<p>Neuer Chat:</p>'+copyBlock('Prompt (Job)','Du bist ein skeptischer Kunde, dem ich eine Preiserhöhung von 5 % erklären muss. Spiele die Rolle realistisch und antworte immer nur kurz. Beginne mit deinem ersten Einwand. Nach fünf Wortwechseln beendest du das Spiel und gibst mir Feedback: Was war überzeugend, was nicht, was würdest du ändern?')+'<p>Oder privat:</p>'+copyBlock('Prompt (privat)','Du bist ein Freund, dem ich erklären muss, dass ich fürs Haareschneiden künftig 7 € statt 5 € nehme. Spiele die Rolle realistisch, auch ein bisschen frotzelnd, und antworte immer nur kurz. Nach fünf Wortwechseln beendest du das Spiel und gibst mir Feedback: Wie souverän und freundlich war ich?'),[['top','Sehr hilfreich'],['okay','Okay'],['komisch','Fühlte sich komisch an']],'Rollenspiele sind ein Trainingsplatz für Verhandlungen, Feedbackgespräche oder Vorträge. Du kannst die Schwierigkeit hochdrehen: „Sei härter.“');}},
+ {t:'Widerspruch',m:6,r:function(){return '<h2>Der Advocatus Diaboli</h2>'+
+  exp('m11.dv','Mission','<p>Wähle einen Plan aus deinem Alltag, zum Beispiel „Ich trainiere künftig vier statt drei Tage“ oder „Ich erhöhe meine Preise beim Haareschneiden“, und:</p>'+copyBlock('Prompt','Mein Plan: [Plan in zwei Sätzen]. Spiele den Advocatus Diaboli und nenne die fünf stärksten Einwände. Danach: Stelle dir vor, der Plan ist in einem Jahr gescheitert. Nenne die drei wahrscheinlichsten Gründe (Pre-Mortem).'),[['neu','Neue Perspektiven bekommen'],['bekannt','Nichts Neues'],['hart','Eher hart, aber nützlich']],'Menschen sind betriebsblind für ihre eigenen Pläne. Eine KI hat keinen Stolz und liefert Gegenargumente in Sekunden. Entscheiden musst weiterhin du.');}},
+ {t:'Lernen',m:6,r:function(){return '<h2>Dein persönlicher Tutor</h2>'+
+  fld('Was willst du lernen?',inp('m11.topic','z. B. Pivot-Tabellen in Excel oder Grundlagen der Ernährung für Muskelaufbau'))+copyBlock('Prompt',p11(),'live-p11')+
+  exp('m11.ln','Mission','<p>Sende den Prompt. Beantworte die Quizfragen. Bitte danach:</p>'+copyBlock('Prompt 2','Erstelle mir aus den Kernpunkten 8 Karteikarten (Frage und Antwort).'),[['top','Sehr effektiv'],['okay','Geht so'],['karten','Karteikarten funktioniert nicht']],'So lernst du aktiv statt zuzuschauen. Je nach Oberfläche gibt es für Karteikarten eine eigene Funktion. Falls nicht, nutze die Textform.');}},
+ {t:'Abschluss',m:3,r:function(){return '<h2>Abschluss</h2>'+
+  quiz('m11a','Wofür eignet sich ein Rollenspiel mit ChatGPT?',['Schwierige Gespräche risikofrei üben','Steuern berechnen','Dateien löschen','Als Ersatz für Gespräche'],0,'Üben ohne Risiko ist die Stärke.',2)+
+  quiz('m11b','Was macht ein Pre-Mortem?',['Es plant den Erfolg','Es fragt, warum der Plan gescheitert ist','Es korrigiert Rechtschreibung','Es spart Geld'],1,'Der Blick auf mögliches Scheitern deckt blinde Flecken auf.',0)+
+  quiz('m11c','Wie lernst du am besten mit ChatGPT?',['Passiv lesen','Erklären lassen, dann selbst Fragen beantworten','Nur Stichpunkte kopieren','Nur Bilder ansehen'],1,'Aktives Abfragen schlägt Lesen.',3)+
+  refl('refl.m11','Welche Situation übst du als Nächstes mit ChatGPT?')+hwb('m11','Lass dich heute ein Thema, das dich interessiert, in fünf Fragen abfragen.');},need:['m11a','m11b','m11c']}
+ ]},
+{id:'m12',stage:'C',n:12,title:'Workflows und Agenten',sub:'Prompt-Ketten, Qualitätscheck, Mini-Tools und erste Agenten',badge:['12','Workflow-Baumeister','Du baust ganze Abläufe statt Einzelanfragen. Damit bist du bereit für das Abschlussprojekt.'],steps:[
+ {t:'Prompt-Kette',m:7,r:function(){return '<h2>Drei Schritte, ein Ergebnis</h2><p>Große Aufgaben zerlegst du in kleine Schritte. Jeder Schritt bekommt einen eigenen Prompt, im selben Chat.</p>'+
+  exp('m12.ch','Mission','<p>Mit deinen Notizen aus Modul 1 ('+(pv()?'privat':'Job')+'-Variante):</p>'+copyBlock('Schritt 1','Hier meine Notizen:\n'+NT()+'\n\nGliedere sie in Entscheidungen, Aufgaben und offene Fragen.')+copyBlock('Schritt 2','Schreibe daraus '+(pv()?'eine WhatsApp-Nachricht an Jonas':'eine Mail an Hr. Köhler')+'. Nutze nur das, was entschieden ist. Maximal 100 Wörter.')+copyBlock('Schritt 3','Erstelle eine To-do-Liste für mich mit Terminen. Markiere, was noch zu klären ist.'),[['top','Klare, saubere Ergebnisse'],['okay','Brauchbar'],['unklar','Eher chaotisch']],'Kleine Schritte sind prüfbar. Nach jedem Schritt siehst du, ob die Richtung stimmt, bevor die KI weiterbaut.');}},
+ {t:'Qualitätscheck',m:5,r:function(){return '<h2>Der zweite Chat als Prüfer</h2>'+
+  exp('m12.qa','Mission','<p>Öffne einen neuen Chat, füge den Text aus der Kette ein und:</p>'+copyBlock('Prompt','Du bist ein strenger Lektor. Prüfe diesen Text auf Fehler, Unklarheiten, Tonprobleme und fehlende Informationen. Nenne maximal fünf Verbesserungen in einer Liste. Schreibe den Text nicht neu.\n\n[Text einfügen]'),[['viel','Hat echte Schwächen gefunden'],['wenig','Kaum Kritik'],['alles','Hat alles gelobt']],'Ein frischer Chat ist unbefangen, er hat die Entstehung nicht miterlebt. Für wichtige Texte ist dieser Zweitblick Gold wert.');}},
+ {t:'Mini-Tools und Agenten',m:7,r:function(){return '<h2>Baue dir ein kleines Tool</h2>'+
+  exp('m12.tool','Mission 1: Mini-Tool','<p>Neuer Chat:</p>'+copyBlock('Prompt','Baue mir ein kleines interaktives Tool: einen Rechner, der aus Netto-Preis und Rabatt in Prozent den Endpreis berechnet, mit zwei Eingabefeldern. Mach es übersichtlich.')+'<p>Oder privat:</p>'+copyBlock('Prompt (privat)','Baue mir ein kleines interaktives Tool für meine Haarschnitte: Eingaben sind Anzahl Schnitte pro Monat, Preis pro Schnitt und Materialkosten pro Schnitt. Ausgabe sind Einnahmen und Gewinn. Mach es übersichtlich.'),[['tool','ChatGPT zeigte ein bedienbares Tool'],['text','Nur Text oder Formel'],['nein','Hat nicht funktioniert']],'Ob du ein klickbares Tool bekommst, hängt von deiner Oberfläche ab. Selbst als Text ist das ein Beweis dafür, dass KI nicht nur Texte, sondern kleine Werkzeuge bauen kann.')+
+  '<h3>Mission 2: Erster Agent (optional)</h3><p>'+md('In der Desktop-App gibt es **ChatGPT Work**, einen Agenten, der mehrstufige Aufgaben selbstständig erledigt. Im kostenlosen Konto ist er stark begrenzt und nur am Rechner verfügbar. Falls du ihn siehst, probiere einen kleinen Auftrag:')+'</p>'+
+  copyBlock('Auftrag','Erstelle mir eine einseitige Checkliste für die Vorbereitung eines Kundentermins und gib sie als Dokument aus.')+'<p>Oder privat:</p>'+copyBlock('Auftrag (privat)','Erstelle mir einen Wochenplan fürs Training mit Einkaufsliste für passende Mahlzeiten und gib ihn als Dokument aus.')+
+  exp('m12.ag','Ergebnis','',[['ja','Hat geklappt'],['limit','Limit erreicht'],['nicht','Nicht verfügbar']],'Agenten sind der nächste Schritt: Sie planen, handeln und liefern fertige Ergebnisse. Im Bonus-Bereich lernst du die Funktionen, die ein Abo brauchen, etwa geplante Aufgaben.');}},
+ {t:'Abschluss',m:3,r:function(){return '<h2>Abschluss</h2>'+
+  quiz('m12a','Warum zerlegst du große Aufgaben in Schritte?',['Damit es länger dauert','Damit du jeden Schritt prüfen kannst','Weil ChatGPT sonst abstürzt','Um Tokens zu sammeln'],1,'Kleine Schritte sind prüfbar und lenkbar.',2)+
+  quiz('m12b','Wozu dient ein Prüf-Chat?',['Neue Ideen zu sammeln','Ein unbefangener Zweitblick auf das Ergebnis','Bilder erzeugen','Die Datei zu speichern'],1,'Ein frischer Chat bewertet unvoreingenommen.',0)+
+  quiz('m12c','Was zeichnet einen Agenten aus?',['Er antwortet nur mit Ja oder Nein','Er plant und erledigt mehrstufige Aufgaben selbst','Er ist immer kostenlos','Er ersetzt dein Handy'],1,'Planen und Handeln statt nur Antworten.',3)+
+  refl('refl.m12','Welcher Ablauf, beruflich oder privat, eignet sich für eine Prompt-Kette?')+hwb('m12','Baue eine Prompt-Kette für eine echte Aufgabe und miss, wie viel Zeit du sparst.');},need:['m12a','m12b','m12c']}
+ ]},
+{id:'m13',stage:'Z',n:13,title:'Abschlussprojekt, Teil 1',sub:'Dein Alltags-Autopilot: planen und aufbauen',badge:['13','Autopilot im Bau','Dein Autopilot steht. Im letzten Modul schickst du ihn in den Echtbetrieb.'],steps:[
+ {t:'Aufgabe wählen',m:4,r:function(){return '<h2>Welche Aufgabe soll dein Autopilot übernehmen?</h2><p>Wähle eine wiederkehrende Aufgabe aus deiner Aufgaben-Landkarte (Modul 3). Gut geeignet ist alles, was regelmäßig und ähnlich abläuft. Job oder privat, beides ist erlaubt.</p>'+callout('tip','Ideen','**Job:** Lieferverzug-Mails, Wochenstatus, Abweichungslisten. **Privat:** wöchentlicher Trainingsplan samt Einkaufsliste, Terminnachrichten und Monatsabrechnung fürs Haareschneiden, Planer für den Bayern-Spieltag mit Freunden.')+
+  fld('Die Aufgabe',inp('m13.task','z. B. wöchentlicher Trainingsplan oder Lieferverzug-Mails'))+
+  fld('Wie oft?',choice('m13.freq',[['taeglich','Täglich'],['woechentlich','Wöchentlich'],['monatlich','Monatlich']]))+
+  fld('Wie viele Minuten dauert sie heute pro Durchlauf?',inp('m13.min','z. B. 45'))+
+  fld('Das Ergebnis soll aussehen wie …',ta('m13.out','z. B. ein Wochenplan als Tabelle oder eine Mail mit maximal 150 Wörtern',2))+
+  fld('Woran erkenne ich ein gutes Ergebnis?',ta('m13.crit','z. B. korrekte Zahlen, passt zu meinem Equipment, freundlicher Ton, keine Floskeln',2));}},
+ {t:'Bauplan',m:6,r:function(){return '<h2>Lass ChatGPT den Bauplan schreiben</h2>'+
+  copyBlock('Prompt',p13(),'live-p13')+
+  exp('m13.plan','Mission','<p>Sende den Prompt in einem neuen Chat, beantworte die Rückfragen und lass dir drei Dinge liefern: Projektanweisungen, Eingabevorlage, Prüf-Checkliste.</p>',[['ok','Alle drei Teile erhalten'],['teil','Teilweise'],['nein','Noch nicht']],'Das ist das Prinzip dieses ganzen Kurses: Du beschreibst das Ziel, ChatGPT liefert Werkzeug und Bauplan. Du entscheidest, was davon taugt.');}},
+ {t:'Projekt anlegen',m:7,r:function(){var c=function(k,l){return chk('m13.c'+k,l);};return '<h2>Autopilot bauen und testen</h2>'+
+  '<p>Hake ab, was du erledigt hast:</p>'+c(1,'Neues Project „Autopilot“ mit dem Namen deiner Aufgabe angelegt')+c(2,'Projektanweisungen aus dem Bauplan eingefügt')+c(3,'Optional: eine Beispieldatei (anonym) hinzugefügt')+c(4,'Testlauf mit einer Beispieleingabe durchgeführt')+c(5,'Ergebnis mit der Prüf-Checkliste kontrolliert')+
+  exp('m13.t','Testergebnis','',[['top','Läuft gut'],['fast','Fast, braucht Feinschliff'],['neu','Noch weit weg']],'Perfekt muss es nicht sein. Die Anweisungen verbesserst du im Betrieb.')+
+  copyBlock('Zum Verbessern','Verbessere die Projektanweisungen: Das lief nicht gut: [Beschreibung]. Das wünsche ich mir stattdessen: [Wunsch]. Zeige die neue Version.');}},
+ {t:'Abschluss',m:3,r:function(){return '<h2>Abschluss Teil 1</h2><p>Dein Autopilot steht. Im nächsten Modul wird er im Echtbetrieb gemessen.</p>'+refl('refl.m13','Was war beim Bauen die größte Überraschung?')+hwb('m13','Nutze deinen Autopilot einmal vorab bei einer echten Aufgabe.');}}
+ ]},
+{id:'m14',stage:'Z',n:14,title:'Abschlussprojekt, Teil 2',sub:'Echtbetrieb, Nachher-Challenge und dein Abschluss-Check',badge:['14','KI-Profi','Du hast den ganzen Weg geschafft. Vom Fragensteller zum Profi, mit Zahlen, die es belegen.'],steps:[
+ {t:'Echtbetrieb',m:5,r:function(){return '<h2>Dein Autopilot im Einsatz</h2><p>Führe deine Aufgabe jetzt mit dem Autopilot aus und stoppe die Zeit.</p>'+
+  '<div class="card"><b>'+esc(get('m13.task')||'Deine Aufgabe')+'</b><p style="margin:4px 0 0;color:var(--muted)">Vorher: '+esc(get('m13.min')||'?')+' Minuten</p></div>'+stopwatch('m14.sec')+
+  fld('Qualität des Ergebnisses',choice('m14.q',[['1','schwach'],['2','geht so'],['3','okay'],['4','gut'],['5','sehr gut']]))+
+  fld('Was würdest du verbessern?',ta('m14.note','',2));}},
+ {t:'Nachher-Challenge',m:8,r:function(){return '<h2>Die Challenge noch einmal</h2><p>Dieselbe Aufgabe wie in Modul 1, aber jetzt mit allem, was du kannst. Nutze Bausteine, Rückfragen oder deinen Assistenten.</p>'+
+  copyBlock('Notizen',NT())+'<p>'+(pv()?md('Bitte um ==1. eine freundliche Nachricht== an Jonas und ==2. eine To-do-Liste==.'):md('Bitte um ==1. eine professionelle Mail== an Hr. Köhler und ==2. eine To-do-Liste==.'))+'</p><p style="color:var(--muted)">Du hast in Modul 1 die '+(pv()?'Privat':'Job')+'-Variante gewählt.</p>'+stopwatch('m14.cs')+
+  fld('Dein Prompt',ta('m14.cprompt','Hier einfügen …',4))+fld('Das Ergebnis finde ich',choice('m14.cr',[['1','schwach'],['2','geht so'],['3','okay'],['4','gut'],['5','sehr gut']]))+compare();}},
+ {t:'Dein Radar',m:3,r:function(){return '<h2>Wie sicher fühlst du dich jetzt?</h2><p>Bewerte dieselben acht Fähigkeiten wie in Modul 1. Das gestrichelte Netz zeigt deinen Start.</p>'+sliders('assess2');}},
+ {t:'Abschluss-Check',m:4,r:function(){return '<h2>Dein Abschluss-Check</h2><p>Setze nur Häkchen, wo du ehrlich sagen kannst: Das kann ich.</p>'+
+  chk('m14.k1','Ich formuliere Prompts mit Rolle, Aufgabe, Kontext, Format und Grenzen.')+chk('m14.k2','Ich lasse mich von ChatGPT interviewen und bessere im Dialog nach.')+chk('m14.k3','Ich prüfe Fakten und Quellen, bevor ich vertraue.')+chk('m14.k4','Ich werte Tabellen aus und lasse Formeln erklären.')+chk('m14.k5','Ich nutze Bilder, Fotos und Sprache, wo es Zeit spart.')+chk('m14.k6','Ich habe einen eigenen Assistenten, ein Project und eine Prompt-Bibliothek.')+chk('m14.k7','Ich baue Abläufe aus Prompt-Ketten und lasse Ergebnisse gegenprüfen.')+
+  '<h3>Dein Einseiter für Kollegen</h3><p>Zum Abschluss lässt du ChatGPT eine einseitige Anleitung schreiben, mit der du anderen zeigst, wie sie anfangen.</p>'+copyBlock('Prompt',p14(),'live-p14')+refl('refl.m14','Was war dein größtes Aha-Erlebnis in diesem Kurs?');}}
+ ]},
+{id:'b1',stage:'X',n:'B1',bonus:1,title:'Eigene GPTs bauen',sub:'Ein Assistent für genau eine Aufgabe, den du teilen kannst',badge:['B1','GPT-Baumeister','Du hast einen eigenen GPT gebaut, den du und andere jederzeit nutzen können.'],steps:[
+ {t:'Einstieg',m:3,r:function(){return '<h2>Warum eigene GPTs?</h2>'+callout('warn','Voraussetzung','Eigene GPTs erstellen geht nur mit einem bezahlten Plan (zum Beispiel Plus). Ohne Abo kannst du fertige GPTs nutzen, aber keine bauen. Falls du den Testmonat nutzt, ist das ein guter Zeitpunkt.')+
+  '<p>Ein GPT ist ein Assistent mit festen Anweisungen und Dateien für eine einzige Aufgabe. Im Gegensatz zum Project kannst du ihn mit einem Link teilen.</p>';}},
+ {t:'Mission',m:8,r:function(){return '<h2>Baue dein eigenes GPT</h2>'+
+  '<p>Wähle eine Variante. Zuerst die private:</p>'+copyBlock('Anweisungen: Trainings-Coach-GPT','Du bist mein Trainings-Coach. Frage nach Ziel, Tagen pro Woche, Equipment und Dauer. Erstelle daraus einen Plan als Tabelle mit Übung, Sätzen und Wiederholungen. Erkläre jede Übung in einem Satz. Erfinde keine Studien. Antworte kurz, motivierend und auf Deutsch.')+'<p>Oder die berufliche:</p>'+copyBlock('Anweisungen für dein GPT','Du bist ein Protokoll-Assistent. Mache aus Rohnotizen ein Ergebnisprotokoll mit den Abschnitten Entscheidungen, Aufgaben (Verantwortliche, Termine) und Offene Punkte. Erfinde nichts, markiere Unklares mit „zu klären“. Antworte knapp und auf Deutsch.')+
+  '<ol><li>Seitenleiste, „GPTs“, „Erstellen“.</li><li>Name: „Trainings-Coach“ oder „Protokoll-Assistent“. Anweisungen: Text von oben einfügen.</li><li>Konversationsstarter: „Hier ist mein Rohprotokoll“.</li><li>In der Vorschau testen (Trainingsplan oder Rohprotokoll aus Modul 8), dann speichern.</li></ol>'+
+  exp('b1.g','Ergebnis','',[['top','Läuft'],['fix','Braucht Anpassung'],['nein','Nicht möglich (kein Abo)']],'Je enger die Aufgabe, desto besser der GPT. Baue lieber mehrere kleine als einen großen.');}},
+ {t:'Abschluss',m:3,r:function(){return '<h2>Abschluss</h2>'+quiz('b1a','Was unterscheidet einen GPT von einem Project?',['Er lässt sich teilen und hat feste Anweisungen','Er ist teurer','Er hat keine Anweisungen','Er kann nur Bilder'],0,'GPTs sind teilbare Spezialisten.',1)+refl('refl.b1','Für welche Aufgabe baust du den nächsten GPT?');},need:['b1a']}
+ ]},
+{id:'b2',stage:'X',n:'B2',bonus:1,title:'Tiefe Recherche und starkes Denken',sub:'Volle Deep Research und höhere Denkstufen',badge:['B2','Tiefen-Rechercheur','Du hast die Recherche in voller Tiefe erlebt.'],steps:[
+ {t:'Einstieg',m:3,r:function(){return '<h2>Mehr Tiefe</h2>'+callout('warn','Voraussetzung','Die volle Deep Research und die höheren Denkstufen (Medium, High) gibt es mit einem bezahlten Plan. In der kostenlosen Version sind sie stark begrenzt oder nicht verfügbar.')+'<p>Der Unterschied: Mehr Quellen, mehr Gründlichkeit, mehr Durchläufe. Gut für Marktüberblicke, Vergleiche und Entscheidungsvorlagen.</p>';}},
+ {t:'Mission',m:8,r:function(){return '<h2>Ein Entscheidungspapier</h2>'+copyBlock('Prompt','Erstelle einen Vergleich von drei Möglichkeiten, wie ich [Thema] verbessern könnte. Zum Beispiel: Welche Ausrüstung (Trimmer, Scheren, Aufsätze) lohnt sich fürs Haareschneiden unter Freunden? Oder: Wie lässt sich die Bestandsführung im Job verbessern? Recherchiere gründlich, nutze seriöse Quellen und gliedere in: Ausgangslage, Optionen mit Vor- und Nachteilen, Empfehlung mit Begründung. Nenne alle Quellen.')+
+  exp('b2.d','Ergebnis','<p>Nutze Deep Research und vergleiche mit der normalen Antwort.</p>',[['viel','Deutlich gründlicher'],['gleich','Kaum Unterschied'],['nein','Nicht verfügbar']],'Der Unterschied zeigt sich bei Quellenbreite und Struktur. Prüfe die Quellen dennoch, auch hier gilt: Stichproben.');}},
+ {t:'Abschluss',m:3,r:function(){return '<h2>Abschluss</h2>'+quiz('b2a','Wann lohnt sich Deep Research besonders?',['Bei Smalltalk','Bei Vergleichen und Entscheidungsvorlagen','Bei Rechtschreibung','Bei Bildern'],1,'Dort, wo du sonst lange selbst recherchieren müsstest.',3)+refl('refl.b2','Welche Recherche lohnt sich bei dir wirklich?');},need:['b2a']}
+ ]},
+{id:'b3',stage:'X',n:'B3',bonus:1,title:'Geplante Aufgaben',sub:'ChatGPT arbeitet nach Zeitplan für dich',badge:['B3','Planer','ChatGPT liefert dir Ergebnisse, ohne dass du fragen musst.'],steps:[
+ {t:'Einstieg',m:3,r:function(){return '<h2>KI als Wecker und Assistent</h2>'+callout('warn','Voraussetzung','Geplante Aufgaben gibt es mit einem bezahlten Plan (ab Go). Je nach App heißt der Menüpunkt „Aufgaben“ oder „Tasks“.')+'<p>ChatGPT führt einen Prompt zu festen Zeiten selbst aus und schickt dir das Ergebnis. Ideal für wiederkehrende Briefings.</p>';}},
+ {t:'Mission',m:7,r:function(){return '<h2>Dein Montags-Briefing</h2>'+copyBlock('Prompt','Erstelle jeden Montag um 7:30 Uhr ein kurzes Briefing für mich: drei Prioritäten für die Woche, eine Erinnerung an offene Aufgaben und ein Tipp zur Zeitersparnis. Halte es unter 120 Wörter.')+'<p>Oder als Wochenend-Variante:</p>'+copyBlock('Prompt (privat)','Erstelle jeden Freitag um 17 Uhr ein kurzes Wochenend-Briefing: Wann spielt der FC Bayern, wie steht er in der Tabelle, und welches Training steht am Samstag an. Halte es unter 100 Wörter.')+
+  exp('b3.t','Ergebnis','',[['ok','Aufgabe angelegt'],['test','Testlauf erhalten'],['nein','Nicht verfügbar']],'Starte klein: eine Aufgabe, ein Zeitpunkt. Wenn sie dir nützt, baue weitere. Prüfe die Ergebnisse die ersten Male gegen deine Realität.');}},
+ {t:'Abschluss',m:3,r:function(){return '<h2>Abschluss</h2>'+quiz('b3a','Wofür sind geplante Aufgaben ideal?',['Einmalige Fragen','Wiederkehrende Briefings und Erinnerungen','Bilder','Passwörter'],1,'Alles, was regelmäßig gleich abläuft.',0)+refl('refl.b3','Welches Briefing würdest du dir wünschen?');},need:['b3a']}
+ ]},
+{id:'b4',stage:'X',n:'B4',bonus:1,title:'Meetings und Audio',sub:'Sprachaufnahmen hochladen, transkribieren und zusammenfassen',badge:['B4','Audio-Profi','Aus einer Aufnahme wird in Minuten ein fertiges Protokoll.'],steps:[
+ {t:'Einstieg',m:3,r:function(){return '<h2>Vom Sprachmemo zum Protokoll</h2>'+callout('warn','Voraussetzung','Der Audio-Upload zum Transkribieren und Zusammenfassen ist ein Bezahl-Feature und je nach Version und App unterschiedlich verfügbar. Aufnahmen von Gesprächen mit anderen nimmst du nur mit deren Einverständnis auf.')+'<p>Du nimmst ein Memo auf, lädst es hoch und bekommst Text, Zusammenfassung und Aufgaben. Privat geht das auch als Trainingsnotiz direkt nach dem Training: Gewichte und Wiederholungen einsprechen, ChatGPT macht eine Tabelle daraus.</p>';}},
+ {t:'Mission',m:7,r:function(){return '<h2>Dein Sprachprotokoll</h2><p>Nimm mit deinem Handy ein zweiminütiges Sprachmemo auf, in dem du einen fiktiven Termin zusammenfasst. Lade es in ChatGPT hoch und schreibe:</p>'+
+  copyBlock('Prompt','Transkribiere die Aufnahme, fasse sie in fünf Stichpunkten zusammen und erstelle eine Aufgabenliste mit Verantwortlichen. Markiere Unklares mit „zu klären“.')+exp('b4.a','Ergebnis','',[['ok','Hat geklappt'],['teil','Mit Mängeln'],['nein','Nicht verfügbar']],'Für lange Meetings lohnt sich das enorm. Prüfe Namen und Zahlen, die Transkription macht bei Fachbegriffen Fehler.');}},
+ {t:'Abschluss',m:3,r:function(){return '<h2>Abschluss</h2>'+quiz('b4a','Was prüfst du bei Transkripten besonders?',['Schriftgröße','Namen, Zahlen und Fachbegriffe','Dateinamen','Farbe'],1,'Dort passieren die meisten Fehler.',2)+refl('refl.b4','Welche Meetings würdest du künftig aufnehmen (mit Einverständnis)?');},need:['b4a']}
+ ]}
+
+];
+var UPCOMING=[];
+var STAGE={A:'Ankommen',B:'Handwerk',C:'Profi',Z:'Abschluss',X:'Bonus (optional)'};
+
+/* ---------- Logik ---------- */
+function modById(id){return MODS.filter(function(m){return m.id===id;})[0];}
+function mains(){return MODS.filter(function(m){return !m.bonus;});}
+function doneCount(){return mains().filter(function(m){return S.modDone[m.id];}).length;}
+function unlocked(m){if(m.bonus)return !!S.modDone.m12;var ms=mains(),i=ms.indexOf(m);return i<=0||!!S.modDone[ms[i-1].id];}
+function level(){var c=doneCount();return c>=12?3:(c>=9?2:(c>=3?1:0));}
+var LV=['Laie','Entdecker','Handwerker','Profi'];
+function stepDone(m,i){return !!(S.done[m.id]&&S.done[m.id][i]);}
+function completeStep(m,i){
+  S.done[m.id]=S.done[m.id]||{};
+  if(!S.done[m.id][i]){S.done[m.id][i]=true;S.xp+=10;}
+  if(m.id==='m1'&&i===0){S.assessDone=true;SK.forEach(function(k){if(!S.assess[k[0]])S.assess[k[0]]=1;});}
+  if(m.id==='m14'&&i===2){S.assess2=S.assess2||{};S.assess2done=true;SK.forEach(function(k){if(!S.assess2[k[0]])S.assess2[k[0]]=1;});}
+  var all=m.steps.every(function(_,j){return S.done[m.id][j];});
+  if(all&&!S.modDone[m.id]){S.modDone[m.id]=true;S.xp+=20;}
+  persist();
+}
+function go(view,mod,step){UI.view=view;UI.mod=mod;UI.step=step||0;S.last={mod:mod,step:UI.step};persist();render();window.scrollTo(0,0);}
+
+/* ---------- Render ---------- */
+function header(){
+  var c=doneCount(),total=14;
+  return '<div class="bar"><div class="wrap"><button class="brand" data-act="home" aria-label="Zur Übersicht"><span>KI-Werkstatt</span></button><span class="pill">'+LV[level()]+'</span><span class="spacer"></span>'+
+   '<div class="meter"><div class="track" role="progressbar" aria-valuemin="0" aria-valuemax="'+total+'" aria-valuenow="'+c+'" aria-label="Modulfortschritt"><i style="width:'+(c/total*100)+'%"></i></div><span><b style="color:var(--ink)">'+c+'</b> von '+total+' Modulen</span><span>'+S.xp+' XP</span></div></div></div>';
+}
+function homeView(){
+  var next=null,ms=mains();for(var i=0;i<ms.length;i++){if(!S.modDone[ms[i].id]){next=ms[i];break;}}
+  var started=Object.keys(S.done).length>0;
+  var h='<div class="wrap"><div class="home"><main><div class="hero"><h1>Vom Fragensteller zum '+'<mark>KI-Profi</mark></h1><p>ChatGPT von A bis Z in 14 Modulen zu je 15 bis 20 Minuten. Du übst direkt im Chat, kostenlos, mit Beispielen aus Job und Freizeit: von Lieferverzug-Mails bis zum Trainingsplan, vom Protokoll bis zur Haarschnitt-Kalkulation.</p>'+
+   (next?'<button class="btn" data-act="open" data-id="'+next.id+'">'+(started?'Weiter mit Modul '+next.n:'Mit Modul 1 starten')+'</button>':'<p><strong>Alle 14 Module geschafft. Du bist KI-Profi.</strong></p>')+'</div>';
+  ['A','B','C','Z','X'].forEach(function(s){
+    if(s==='X'&&!S.modDone.m12)return;
+    h+='<section class="stage"><h2><b>'+(s==='Z'?'★':(s==='X'?'+':s))+'</b>'+STAGE[s]+'</h2>'+(s==='X'?bonusCard():'')+'<div class="mods">';
+    MODS.filter(function(m){return m.stage===s;}).forEach(function(m){
+      var d=S.modDone[m.id],cnt=m.steps.filter(function(_,i){return stepDone(m,i);}).length,lock=!unlocked(m);
+      var mins=m.steps.reduce(function(a,x){return a+x.m;},0);
+      var tag=d?'Geschafft':(lock?'Erst Modul '+(m.n-1)+' abschließen':(cnt?cnt+' von '+m.steps.length+' Schritten':'ca. '+mins+' Min.'));
+      var inner='<span class="num">'+(d?'✓':m.n)+'</span><span><h3>'+esc(m.title)+'</h3><p>'+esc(m.sub)+'</p></span><span class="tag">'+tag+'</span>';
+      h+=lock?'<div class="mod locked" aria-disabled="true">'+inner+'</div>':'<button class="mod'+(d?' done':'')+'" data-act="open" data-id="'+m.id+'">'+inner+'</button>';});
+    h+='</div></section>';});
+  if(!S.modDone.m12)h+='<div class="bonus"><strong>Für Neugierige:</strong> Nach Modul 12 warten vier Bonus-Module mit Funktionen, die ein Abo brauchen: eigene GPTs bauen, volle Deep Research, geplante Aufgaben und Meetings per Audio zusammenfassen. Ob du sie machst, entscheidest du dann selbst.</div>';
+  h+=saveBox()+'</main><aside class="side"><div class="card"><h3>Dein Stand</h3><div class="lvl">'+LV.map(function(l,i){return '<span class="'+(i<=level()?'on':'')+'">'+l+'</span>';}).join('')+'</div>'+
+   '<div class="stat"><span>Module geschafft</span><b>'+doneCount()+' / 14</b></div><div class="stat"><span>Erfahrungspunkte</span><b>'+S.xp+'</b></div></div>'+radarCard()+'</aside></div></div>';
+  return h;
+}
+function saveBox(){return '<details class="sv"><summary>Fortschritt sichern oder auf ein anderes Gerät mitnehmen</summary><p>Dein Fortschritt liegt in diesem Browser. Kopiere den Code, um ihn zu sichern oder woanders einzufügen.</p><div class="row"><button class="btn ghost small" data-act="export">Code anzeigen</button><button class="btn ghost small" data-act="import">Code laden</button></div><textarea id="code" placeholder="Code hier einfügen oder kopieren"></textarea></details>';}
+
+function modView(m){
+  var s=m.steps[UI.step];
+  var h='<div class="wrap"><div class="crumb"><button class="link" data-act="home">← Übersicht</button></div><div class="mhead"><small>'+(m.bonus?'Bonus · Modul '+m.n:'Stufe '+m.stage+' · '+STAGE[m.stage]+' · Modul '+m.n)+'</small><h1>'+esc(m.title)+'</h1></div>';
+  h+='<div class="steps" role="tablist">'+m.steps.map(function(x,i){return '<button class="stp'+(i===UI.step?' on':'')+(stepDone(m,i)?' ok':'')+'" data-act="step" data-i="'+i+'" role="tab" aria-selected="'+(i===UI.step)+'">'+esc(x.t)+' <em>'+x.m+' Min.</em></button>';}).join('')+'</div>';
+  var last=UI.step===m.steps.length-1,ok=!s.need||quizDone(s.need);
+  h+='<div class="body"><div class="panel">'+s.r()+'</div><div class="foot">'+(UI.step>0?'<button class="btn ghost" data-act="prev">Zurück</button>':'<span></span>')+
+   '<button class="btn" data-act="next"'+(ok?'':' disabled')+'>'+(last?'Modul abschließen':'Schritt erledigt, weiter')+'</button></div>'+(ok?'':'<p style="text-align:right;color:var(--muted);font-size:.9rem;margin-top:8px">Beantworte erst alle Quizfragen.</p>')+'</div></div>';
+  return h;
+}
+function doneView(m){
+  var ms=mains(),nx=null;if(!m.bonus){for(var i=0;i<ms.length;i++){if(!S.modDone[ms[i].id]){nx=ms[i];break;}}}
+  var b=m.badge,fin=m.id==='m14';
+  var extra=m.id==='m3'?'<p>'+md('**Stufe A abgeschlossen.** Du bist jetzt ==Entdecker==. Als Nächstes folgt das Handwerk: Prompting.')+'</p>':
+    (m.id==='m9'?'<p>'+md('**Stufe B abgeschlossen.** Du bist jetzt ==Handwerker==.')+'</p>':
+    (m.id==='m12'?'<p>'+md('**Stufe C abgeschlossen.** Du bist jetzt ==Profi==. Jetzt geht es ums Abschlussprojekt. Und im Bonus-Bereich warten Funktionen mit Abo.')+'</p>':
+    (fin?'<p>'+md('**Alle 14 Module geschafft.** Du bist jetzt ==KI-Profi==. Schau dir unten deine Entwicklung an und zeig deinen Einseiter den Kollegen.')+'</p>':'')));
+  return '<div class="wrap"><div class="body" style="margin:30px auto"><div class="panel badge"><div class="medal">'+b[0]+'</div><small style="color:var(--muted);font-weight:700;letter-spacing:.08em;text-transform:uppercase">'+(m.bonus?'Bonus':'Modul '+m.n)+' geschafft</small><h2>'+esc(b[1])+'</h2><p style="max-width:44ch;margin:8px auto 18px">'+esc(b[2])+'</p>'+extra+
+  '<div class="row" style="justify-content:center">'+(nx?'<button class="btn" data-act="open" data-id="'+nx.id+'">Weiter mit Modul '+nx.n+'</button>':'')+'<button class="btn ghost" data-act="home">Zur Übersicht</button></div></div>'+(fin&&compare()?'<div class="panel" style="margin-top:16px">'+compare()+'</div>':'')+radarCard().replace('Dein Radar',fin?'Dein Radar: Start und jetzt':'Dein Radar')+'</div></div>';
+}
+function render(){
+  var y=window.scrollY;var app=document.getElementById('app');
+  var body;
+  if(UI.view==='home')body=homeView();
+  else{var m=modById(UI.mod);body=UI.view==='done'?doneView(m):modView(m);}
+  app.innerHTML=header()+'<div class="wrap">'+storeWarn()+'</div>'+body;
+  window.scrollTo(0,y);
+}
+
+/* ---------- Events ---------- */
+function copyText(t){
+  function fb(){try{var x=document.createElement('textarea');x.value=t;x.style.position='fixed';x.style.opacity='0';document.body.appendChild(x);x.select();var ok=document.execCommand('copy');document.body.removeChild(x);toast(ok?'Kopiert':'Bitte Text markieren und manuell kopieren');}catch(e){toast('Bitte Text markieren und manuell kopieren');}}
+  try{navigator.clipboard.writeText(t).then(function(){toast('Kopiert');},fb);}catch(e){fb();}
+}
+setInterval(function(){document.querySelectorAll('[data-sw]').forEach(function(el){var o=swo(el.getAttribute('data-sw'));if(o.run)el.textContent=fmt(Math.round(swEl(el.getAttribute('data-sw'))/1000));});},500);
+
+document.addEventListener('click',function(e){
+  var t=e.target.closest('[data-act]');if(!t)return;
+  var a=t.getAttribute('data-act'),d=t.dataset;
+  if(a==='home'){go('home',null);}
+  else if(a==='open'){var m=modById(d.id);if(!unlocked(m)){toast('Schließe zuerst das vorherige Modul ab');return;}var first=0;for(var i=0;i<m.steps.length;i++){if(!stepDone(m,i)){first=i;break;}}go('mod',d.id,first);}
+  else if(a==='step'){UI.step=Number(d.i);render();window.scrollTo(0,0);}
+  else if(a==='prev'){UI.step=Math.max(0,UI.step-1);render();window.scrollTo(0,0);}
+  else if(a==='next'){var m=modById(UI.mod);var wasDone=!!S.modDone[m.id];completeStep(m,UI.step);
+    if(UI.step<m.steps.length-1){UI.step++;S.last={mod:m.id,step:UI.step};persist();render();window.scrollTo(0,0);}
+    else{if(S.modDone[m.id]){UI.view='done';render();window.scrollTo(0,0);}else{toast('Bitte erst alle Schritte abhaken');render();}}}
+  else if(a==='set'){set(d.path,d.val);render();}
+  else if(a==='copy'){copyText(decodeURIComponent(d.text));}
+  else if(a==='flip'){t.classList.toggle('open');}
+  else if(a==='tool'){var arr=S.profile.tools,ix=arr.indexOf(d.val);if(ix>-1)arr.splice(ix,1);else arr.push(d.val);persist();render();}
+  else if(a==='eat'){var ea=S.m3.eaters=S.m3.eaters||[],ei=ea.indexOf(d.val);if(ei>-1)ea.splice(ei,1);else ea.push(d.val);persist();render();}
+  else if(a==='nw'){UI.nw=Number(d.i);render();}
+  else if(a==='poll'){UI.poll=d.val;render();}
+  else if(a==='hw'){S.hw[d.id]=!S.hw[d.id];persist();render();}
+  else if(a==='quiz'){var id=d.id,i=Number(d.i);if(S.quiz[id]==null){S.quiz[id]=i;if(i===Number(d.right))S.xp+=5;persist();render();}}
+  else if(a==='addtask'){ensureTasks();if(S.m3.tasks.length<10){S.m3.tasks.push({name:'',cat:''});persist();render();}}
+  else if(a==='swstart'){var o1=swo(d.path);o1.run=true;o1.t0=Date.now();render();}
+  else if(a==='swstop'){var o2=swo(d.path);o2.acc=swEl(d.path);o2.run=false;set(d.path,Math.round(o2.acc/1000));render();}
+  else if(a==='swreset'){SW[d.path]={run:false,t0:0,acc:0};set(d.path,null);render();}
+  else if(a==='chk'){set(d.path,!get(d.path));render();}
+  else if(a==='quicksave'){copyText(btoa(unescape(encodeURIComponent(JSON.stringify(S)))));}
+  else if(a==='export'){var c=btoa(unescape(encodeURIComponent(JSON.stringify(S))));var el=document.getElementById('code');el.value=c;el.select();}
+  else if(a==='import'){var el2=document.getElementById('code');try{var o=JSON.parse(decodeURIComponent(escape(atob(el2.value.trim()))));if(o&&typeof o==='object'){S=o;persist();location.reload();}}catch(err){toast('Der Code ist ungültig');}}
+});
+document.addEventListener('input',function(e){
+  var t=e.target;if(!t.hasAttribute||!t.hasAttribute('data-bind'))return;
+  var p=t.getAttribute('data-bind'),v=t.value;
+  if(t.getAttribute('data-num')==='1'){v=Number(v);set(p,v);var parts=p.split('.'),k=parts[1],grp=parts[0];var o=document.getElementById('o-'+k);if(o)o.textContent=SKTXT[v];var r=document.getElementById('radar-live');if(r)r.innerHTML=radar(S[grp],true,grp==='assess2'?S.assess:null);return;}
+  if(t.getAttribute('data-num')==='0'){v=Number(v);set(p,v);var bo=document.getElementById('bh-o');if(bo)bo.textContent=v+' Std.';}
+  else if(t.tagName==='SELECT')return;
+  else set(p,v);
+  if(p.indexOf('bonus.')===0){var h=Number(get('bonus.h'));if(isNaN(h)||get('bonus.h')==null)h=2;var rt=Number(String(get('bonus.rate')||'25').replace(',','.'))||0;var mon=Math.round(h*4.3*10)/10;var bt=document.getElementById('bonus-out');if(bt)bt.textContent=bonusText(mon,Math.round(mon*rt));}
+  updateLive();
+});
+document.addEventListener('change',function(e){
+  var t=e.target;if(t.tagName==='SELECT'&&t.hasAttribute('data-bind')){set(t.getAttribute('data-bind'),t.value);render();}
+});
+
+render();
+})();
+</script>
+</body></html>
